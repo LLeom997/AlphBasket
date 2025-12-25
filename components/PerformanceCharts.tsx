@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   Line
 } from 'recharts';
 import { OHLC, Period, ComparisonData } from '../types';
-import { Eye, EyeOff, Calendar, X, TrendingUp, Activity, Scale, AlertTriangle } from 'lucide-react';
+import { Eye, EyeOff, Calendar, X, TrendingUp, Activity, Scale, AlertTriangle, Loader2 } from 'lucide-react';
 
 interface PerformanceChartsProps {
   history: OHLC[];
@@ -116,9 +117,12 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({ history, buyAndHo
 
   if (!history || history.length === 0) {
       return (
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center flex flex-col items-center">
-              <AlertTriangle className="w-8 h-8 text-amber-500 mb-2" />
-              <h3 className="font-bold text-slate-800 text-sm">Simulation Offline</h3>
+          <div className="bg-white p-12 rounded-[32px] border border-slate-200 text-center flex flex-col items-center justify-center space-y-4 shadow-sm h-[350px]">
+              <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+              <div className="space-y-1">
+                <h3 className="font-black text-slate-800 text-[10px] uppercase tracking-[0.2em]">Computing Alpha</h3>
+                <p className="text-[9px] text-slate-400 font-bold uppercase">Processing historical market matrices...</p>
+              </div>
           </div>
       );
   }

@@ -1,3 +1,4 @@
+
 import { Basket } from '../types';
 import { supabase } from './supabase';
 
@@ -11,10 +12,12 @@ export const saveProject = async (basket: Basket, userId: string) => {
             user_id: userId,
             name: basket.name,
             description: basket.description,
+            category: basket.category,
             items: basket.items,
             rebalance_interval: basket.rebalanceInterval,
             initial_investment: basket.initialInvestment,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            created_at: new Date(basket.createdAt).toISOString()
         };
 
         const { data, error } = await supabase
@@ -42,15 +45,15 @@ export const fetchProjects = async (userId: string): Promise<Basket[]> => {
 
         if (error) throw error;
 
-        // Map database snake_case to frontend camelCase
         return (data || []).map((row: any) => ({
             id: row.id,
             name: row.name,
             description: row.description,
+            category: row.category,
             items: row.items,
             rebalanceInterval: row.rebalance_interval as Basket['rebalanceInterval'],
             initialInvestment: Number(row.initial_investment),
-            createdAt: new Date(row.created_at).getTime()
+            createdAt: new Date(row.created_at || row.updated_at).getTime()
         }));
     } catch (error) {
         console.error("Error fetching projects from Supabase:", error);

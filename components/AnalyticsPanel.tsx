@@ -4,7 +4,7 @@ import { SimulationResult } from '../types';
 import { 
   TrendingUp, Activity, ArrowDownRight, ShieldAlert, 
   Calculator, Zap, Percent, BarChart3, AlertCircle,
-  Scale, ShieldCheck, Gauge, Landmark
+  Scale, ShieldCheck, Gauge, Landmark, CalendarDays, Loader2
 } from 'lucide-react';
 
 interface AnalyticsPanelProps {
@@ -36,34 +36,53 @@ const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ simulation }) => {
   }, [simulation, sipAmount, sipDuration, sipFrequency]);
 
   const formatINR = (val: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val);
-  const formatPct = (val: number) => (val * 100).toFixed(2) + '%';
+  const formatPct = (val: number | undefined) => val !== undefined ? (val * 100).toFixed(2) + '%' : 'N/A';
   const formatNum = (val: number) => val.toFixed(2);
 
-  if (!simulation) return null;
+  if (!simulation) return (
+      <div className="bg-white p-8 rounded-[32px] border border-slate-200 border-dashed flex items-center justify-center gap-3 text-slate-400">
+          <Loader2 size={16} className="animate-spin" />
+          <span className="text-[10px] font-black uppercase tracking-widest">Aggregating Risk Metrics...</span>
+      </div>
+  );
 
   const { metrics, warnings } = simulation;
 
   const kpiCards = [
     {
-      label: 'CAGR (Growth)',
+      label: 'All-Time CAGR',
       value: formatPct(metrics.cagr),
       icon: TrendingUp,
       color: metrics.cagr > 0.15 ? 'emerald' : (metrics.cagr > 0 ? 'indigo' : 'red'),
-      desc: 'Annualized Growth Rate'
+      desc: 'Annualized Growth'
+    },
+    {
+      label: '1Y CAGR',
+      value: formatPct(metrics.cagr1y),
+      icon: CalendarDays,
+      color: (metrics.cagr1y || 0) > 0.15 ? 'emerald' : ((metrics.cagr1y || 0) > 0 ? 'indigo' : 'red'),
+      desc: 'Trailing 1 Year'
+    },
+    {
+      label: '3Y CAGR',
+      value: formatPct(metrics.cagr3y),
+      icon: CalendarDays,
+      color: (metrics.cagr3y || 0) > 0.15 ? 'emerald' : ((metrics.cagr3y || 0) > 0 ? 'indigo' : 'red'),
+      desc: 'Trailing 3 Year'
     },
     {
       label: 'Max Drawdown',
       value: formatPct(metrics.maxDrawdown),
       icon: ArrowDownRight,
       color: Math.abs(metrics.maxDrawdown) > 0.3 ? 'red' : (Math.abs(metrics.maxDrawdown) > 0.15 ? 'amber' : 'emerald'),
-      desc: 'Peak to Trough Decline'
+      desc: 'Peak to Trough'
     },
     {
       label: 'Volatility',
       value: formatPct(metrics.volatility),
       icon: Activity,
       color: metrics.volatility > 0.25 ? 'amber' : 'indigo',
-      desc: 'Annualized Risk (Stdev)'
+      desc: 'Annualized Risk'
     },
     {
       label: 'Sharpe Ratio',
@@ -78,13 +97,6 @@ const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ simulation }) => {
       icon: ShieldCheck,
       color: metrics.sortinoRatio > 2 ? 'emerald' : 'indigo',
       desc: 'Downside Risk Efficiency'
-    },
-    {
-      label: 'Calmar Ratio',
-      value: formatNum(metrics.calmarRatio),
-      icon: Gauge,
-      color: metrics.calmarRatio > 3 ? 'emerald' : 'indigo',
-      desc: 'Return vs Drawdown'
     },
     {
       label: 'Total Return',

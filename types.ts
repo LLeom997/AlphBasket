@@ -36,6 +36,7 @@ export interface Basket {
   id: string;
   name: string;
   description: string;
+  category?: string;
   items: BasketItem[];
   allocationMode: 'weight' | 'quantity';
   rebalanceInterval: 'none' | 'monthly' | 'quarterly' | 'yearly';
@@ -60,6 +61,13 @@ export interface AllocationDetail {
   actualWeight: number;
 }
 
+export interface PortfolioAllocation {
+  totalCapital: number;
+  investedCapital: number;
+  uninvestedCash: number;
+  details: AllocationDetail[];
+}
+
 export interface MonteCarloPath {
   p10: number[];
   p50: number[];
@@ -78,12 +86,10 @@ export interface SimulationResult {
   basketId: string;
   history: OHLC[];
   buyAndHoldHistory?: OHLC[];
-  initialAllocation: {
-      totalCapital: number;
-      investedCapital: number;
-      uninvestedCash: number;
-      details: AllocationDetail[];
-  };
+  // Backtest allocation (at start of period)
+  initialAllocation: PortfolioAllocation;
+  // Live execution plan (at latest market price)
+  liveAllocation: PortfolioAllocation;
   metrics: {
     cagr: number;
     cagr1y?: number;

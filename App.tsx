@@ -12,7 +12,7 @@ import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 import StockSelectorModal from './components/StockSelectorModal';
 import { Basket, SimulationResult } from './types';
-import { LogOut, Menu, X, Activity, RefreshCw, ChevronLeft, ChevronRight, ArrowLeft, AlertCircle, LayoutDashboard, Edit3, Plus, LineChart, PieChart as PieIcon, Sparkles, User } from 'lucide-react';
+import { LogOut, Menu, X, Activity, RefreshCw, ChevronLeft, ChevronRight, ArrowLeft, AlertCircle, LayoutDashboard, Edit3, Plus, LineChart, PieChart as PieIcon, Sparkles, User, Loader2 } from 'lucide-react';
 
 export default function App() {
   const [session, setSession] = useState<any>(null);
@@ -71,19 +71,17 @@ export default function App() {
       setSimulation(null);
       return;
     }
-    setIsLoading(true);
+    
     try {
       const tickers = basket.items.map(i => i.ticker);
       await ensureStockHistory(tickers);
       setStocks(getStocks());
       const result = calculateBasketHistory(basket);
       setSimulation(result);
-      setCurrentBasket(basket);
     } catch (error: any) {
+      console.error("Simulation failed:", error);
       setErrorMsg(error.message || "Failed to generate simulation.");
       setSimulation(null);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -92,17 +90,21 @@ export default function App() {
     setSidebarCollapsed(true);
     setSidebarOpen(false);
     setView('editor');
-    if (!simulation || simulation.basketId !== basket.id) {
-        handleSimulate(basket);
+    setSimulation(null); // Clear previous simulation on open
+    
+    // Only auto-simulate if there are already items in the basket (loading an existing one)
+    if (basket.items && basket.items.length > 0) {
+      handleSimulate(basket);
     }
   };
 
   const handleCreateNewProject = () => {
     const newBasket: Basket = {
         id: crypto.randomUUID(),
-        name: 'New Analysis',
-        description: 'Custom Portfolio',
-        items: [{ ticker: 'RELIANCE', weight: 100 }],
+        name: 'New Alpha Strategy',
+        description: 'Custom Synthetic Instrument',
+        category: 'Growth Strategy',
+        items: [], // Start with empty items as requested
         allocationMode: 'weight',
         rebalanceInterval: 'none',
         initialInvestment: 100000,
@@ -120,7 +122,7 @@ export default function App() {
     const eq = 100 / combined.length;
     const updated = { ...currentBasket, items: combined.map(i => ({ ...i, weight: eq })) };
     setCurrentBasket(updated);
-    handleSimulate(updated);
+    // Note: handleSimulate is NOT called here anymore to respect the manual "Run Backtest" requirement
   };
 
   const handleSaveProject = async (b: Basket) => {
@@ -206,11 +208,17 @@ export default function App() {
           ) : (
             <div className="max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
               <div className="lg:col-span-5 xl:col-span-4 lg:sticky lg:top-0 lg:h-[calc(100vh-80px)]">
-                <BasketBuilder availableStocks={stocks} initialBasket={currentBasket} onSave={handleSaveProject} onSimulate={handleSimulate} onOpenExplorer={() => setIsAssetExplorerOpen(true)} />
+                <BasketBuilder 
+                  availableStocks={stocks} 
+                  initialBasket={currentBasket} 
+                  onSave={handleSaveProject} 
+                  onSimulate={handleSimulate} 
+                  onOpenExplorer={() => setIsAssetExplorerOpen(true)} 
+                />
               </div>
 
               <div className="lg:col-span-7 xl:col-span-8 space-y-4">
-                {simulation ? (
+                {currentBasket ? (
                   <>
                     <div className="flex bg-white p-1 rounded-2xl border border-slate-200 shadow-sm w-fit mb-2">
                         {[
@@ -232,20 +240,42 @@ export default function App() {
                         })}
                     </div>
 
-                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        {activeTab === 'history' && (
-                            <div className="space-y-6">
-                                <PerformanceCharts history={simulation.history} drawdownData={simulation.drawdownSeries} comparisonSeries={simulation.comparisonSeries} />
-                                <AnalyticsPanel simulation={simulation} />
+                    {errorMsg && (
+                       <div className="bg-red-50 border border-red-100 p-4 rounded-3xl flex items-center gap-3 text-red-600 text-xs font-black uppercase tracking-widest">
+                          <AlertCircle size={18} />
+                          {errorMsg}
+                       </div>
+                    )}
+
+                    {simulation ? (
+                        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            {activeTab === 'history' && (
+                                <div className="space-y-6">
+                                    <PerformanceCharts 
+                                      history={simulation?.history || []} 
+                                      drawdownData={simulation?.drawdownSeries || []} 
+                                      comparisonSeries={simulation?.comparisonSeries || []} 
+                                    />
+                                    <AnalyticsPanel simulation={simulation} />
+                                </div>
+                            )}
+                            {activeTab === 'predictive' && <PredictiveAnalysis simulation={simulation} />}
+                            {activeTab === 'allocation' && <AllocationDetails simulation={simulation} stocks={stocks} />}
+                        </div>
+                    ) : (
+                        <div className="h-[500px] flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-[40px] bg-slate-50/50">
+                            <Activity size={48} className="mb-4 opacity-10" />
+                            <div className="text-center px-8">
+                                <p className="font-black uppercase tracking-widest text-xs text-slate-600">Awaiting Strategy Analysis</p>
+                                <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase">Configure your constituents and click "Run Backtest" to begin simulation</p>
                             </div>
-                        )}
-                        {activeTab === 'predictive' && <PredictiveAnalysis simulation={simulation} />}
-                        {activeTab === 'allocation' && <AllocationDetails simulation={simulation} stocks={stocks} />}
-                    </div>
+                        </div>
+                    )}
                   </>
                 ) : (
-                    <div className="h-[400px] flex items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-3xl">
-                        <p className="font-black uppercase tracking-widest text-xs">Configure your assets to begin</p>
+                    <div className="h-[400px] flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50/50">
+                        <Activity size={48} className="mb-4 opacity-10" />
+                        <p className="font-black uppercase tracking-widest text-xs">Awaiting Strategy Initialization</p>
                     </div>
                 )}
               </div>
