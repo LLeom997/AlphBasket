@@ -15,8 +15,8 @@ export interface Stock {
   universe: 'Nifty 50' | 'Nifty Next 50' | 'Midcap';
   marketCap: number; // in Crores
   volatility: number; // Daily volatility
-  data: OHLC[]; // 5 years of daily data
-  currentPrice?: number; // Latest traded price
+  data: OHLC[]; // daily data
+  currentPrice?: number;
   returns: {
     oneYear: number;
     twoYear: number;
@@ -26,9 +26,10 @@ export interface Stock {
 
 export interface BasketItem {
   ticker: string;
-  weight: number; // Percentage 0-100
+  weight: number; // Used if mode is 'weight'
+  shares?: number; // Used if mode is 'quantity'
   suppressed?: boolean;
-  originalWeight?: number; // Store weight before suppression
+  originalWeight?: number;
 }
 
 export interface Basket {
@@ -36,6 +37,7 @@ export interface Basket {
   name: string;
   description: string;
   items: BasketItem[];
+  allocationMode: 'weight' | 'quantity';
   rebalanceInterval: 'none' | 'monthly' | 'quarterly' | 'yearly';
   initialInvestment: number;
   createdAt: number;
@@ -58,10 +60,24 @@ export interface AllocationDetail {
   actualWeight: number;
 }
 
+export interface MonteCarloPath {
+  p10: number[];
+  p50: number[];
+  p90: number[];
+}
+
+export interface AssetForecast {
+  ticker: string;
+  expectedReturn: number;
+  probProfit: number;
+  worstCase: number;
+  bestCase: number;
+}
+
 export interface SimulationResult {
   basketId: string;
   history: OHLC[];
-  buyAndHoldHistory?: OHLC[]; // History if no rebalancing was applied
+  buyAndHoldHistory?: OHLC[];
   initialAllocation: {
       totalCapital: number;
       investedCapital: number;
@@ -70,15 +86,27 @@ export interface SimulationResult {
   };
   metrics: {
     cagr: number;
+    cagr1y?: number;
+    cagr3y?: number;
     maxDrawdown: number;
     sharpeRatio: number;
+    sortinoRatio: number;
+    calmarRatio: number;
+    var95: number;
     totalReturn: number;
     volatility: number;
     bestYear: number;
     worstYear: number;
   };
+  warnings: string[];
   drawdownSeries: { date: string; value: number }[];
   comparisonSeries: ComparisonData[];
+  forecast?: {
+    paths: MonteCarloPath;
+    assetForecasts: AssetForecast[];
+    probProfit: number;
+    medianEndValue: number;
+  };
 }
 
 export type Period = '1Y' | '3Y' | '5Y' | 'ALL';

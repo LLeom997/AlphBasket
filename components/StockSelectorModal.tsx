@@ -1,109 +1,165 @@
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Stock } from '../types';
-import { Search, X, Check, Filter, TrendingUp, ArrowDownUp, ShieldAlert, ArrowUp, ArrowDown } from 'lucide-react';
-import StockTooltip from './StockTooltip';
+import { getNseMasterList, syncSingleStock } from '../services/marketData';
+import { Search, X, Check, Filter, RefreshCcw, LayoutGrid, Zap, TrendingUp, TrendingDown, ChevronDown } from 'lucide-react';
+import { LineChart, Line, ResponsiveContainer } from 'recharts';
+
+interface StockCardProps {
+  item: any;
+  isSelected: boolean;
+  onToggle: (ticker: string) => void;
+}
+
+const StockCard: React.FC<StockCardProps> = ({ 
+  item, 
+  isSelected, 
+  onToggle 
+}) => {
+  const [syncedData, setSyncedData] = useState<Stock | null>(null);
+  const [loading, setLoading] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && !syncedData && !loading) {
+        handleSync();
+      }
+    }, { threshold: 0.1 });
+
+    if (cardRef.current) observer.observe(cardRef.current);
+    return () => observer.disconnect();
+  }, [syncedData, loading]);
+
+  const handleSync = async () => {
+    setLoading(true);
+    const data = await syncSingleStock(item.symbol);
+    if (data) setSyncedData(data);
+    setLoading(false);
+  };
+
+  const fmtPct = (n: number) => (n * 100).toFixed(1) + '%';
+
+  const sparkData = useMemo(() => {
+      if (!syncedData?.data) return [];
+      const step = Math.max(1, Math.floor(syncedData.data.length / 20));
+      return syncedData.data.filter((_, i) => i % step === 0).map(d => ({ value: d.close }));
+  }, [syncedData]);
+
+  return (
+    <div 
+      ref={cardRef}
+      onClick={() => onToggle(item.symbol)}
+      className={`
+        cursor-pointer rounded-2xl border transition-all flex flex-col group relative overflow-hidden bg-white min-h-[100px]
+        ${isSelected 
+            ? 'border-indigo-500 ring-2 ring-indigo-500/10 shadow-lg' 
+            : 'border-slate-200 hover:border-indigo-300 hover:shadow-md'
+        }
+      `}
+    >
+      <div className="p-3 sm:p-4 flex justify-between items-start">
+        <div className="min-w-0 flex-1 pr-2">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <span className={`font-black text-xs sm:text-sm uppercase tracking-tight ${isSelected ? 'text-indigo-900' : 'text-slate-800'}`}>
+                    {item.symbol}
+                </span>
+                <span className="text-[7px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200 font-black uppercase tracking-widest hidden xs:inline-block">
+                    {item.industry?.slice(0, 10) || 'EQUITY'}
+                </span>
+            </div>
+            <div className="text-[9px] text-slate-400 font-bold truncate leading-none">
+                {item.companyName}
+            </div>
+        </div>
+        
+        <div className="text-right shrink-0">
+            {loading ? (
+                <RefreshCcw size={12} className="animate-spin text-indigo-300" />
+            ) : syncedData ? (
+                <div className="flex flex-col items-end">
+                    <div className={`text-[10px] sm:text-xs font-black flex items-center gap-1 ${syncedData.returns.oneYear >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                        {fmtPct(syncedData.returns.oneYear)}
+                    </div>
+                </div>
+            ) : null}
+        </div>
+      </div>
+
+      <div className="h-6 sm:h-8 w-full mt-auto opacity-60">
+        {syncedData && sparkData.length > 0 && (
+            <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={sparkData}>
+                    <Line 
+                        type="monotone" 
+                        dataKey="value" 
+                        stroke={syncedData.returns.oneYear >= 0 ? '#10b981' : '#ef4444'} 
+                        strokeWidth={2} 
+                        dot={false} 
+                        isAnimationActive={false}
+                    />
+                </LineChart>
+            </ResponsiveContainer>
+        )}
+      </div>
+      
+      {isSelected && (
+        <div className="absolute top-2 right-2 z-10 animate-in zoom-in-50 duration-200">
+            <div className="bg-indigo-600 rounded-full p-1 border border-white shadow-lg">
+                <Check size={10} className="text-white" />
+            </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface StockSelectorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  stocks: Stock[];
+  stocks: Stock[]; 
   onAdd: (tickers: string[]) => void;
   alreadySelected: string[];
 }
 
 const StockSelectorModal: React.FC<StockSelectorModalProps> = ({ 
-  isOpen, onClose, stocks, onAdd, alreadySelected 
+  isOpen, onClose, onAdd, alreadySelected 
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSector, setSelectedSector] = useState<string>('All');
-  const [selectedUniverse, setSelectedUniverse] = useState<string>('All');
-  const [selectedPerformance, setSelectedPerformance] = useState<string>('All');
-  const [selectedRisk, setSelectedRisk] = useState<string>('All');
-  
-  const [sortBy, setSortBy] = useState<string>('Market Cap');
-  const [sortOrder, setSortOrder] = useState<'asc'|'desc'>('desc');
-  
+  const [masterList, setMasterList] = useState<any[]>([]);
+  const [loadingMaster, setLoadingMaster] = useState(false);
   const [selectedTickers, setSelectedTickers] = useState<Set<string>>(new Set());
+  const [sectorFilter, setSectorFilter] = useState('All');
 
-  // Extract unique filters
-  const sectors = useMemo(() => ['All', ...new Set(stocks.map(s => s.sector))], [stocks]);
-  const universes = useMemo(() => ['All', ...new Set(stocks.map(s => s.universe))], [stocks]);
+  useEffect(() => {
+    if (isOpen) {
+      setLoadingMaster(true);
+      getNseMasterList().then(list => {
+        setMasterList(list);
+        setLoadingMaster(false);
+      });
+    }
+  }, [isOpen]);
 
-  const filteredStocks = useMemo(() => {
-    const TRADING_DAYS = 252;
-    
-    // 1. Filter
-    const filtered = stocks.filter(stock => {
-      const matchesSearch = stock.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            stock.ticker.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesSector = selectedSector === 'All' || stock.sector === selectedSector;
-      const matchesUniverse = selectedUniverse === 'All' || stock.universe === selectedUniverse;
-      
-      let matchesPerf = true;
-      // Only filter by perf if we actually have data (non-zero)
-      if (stock.returns.oneYear !== 0) {
-          if (selectedPerformance === '1Y > 10%') matchesPerf = stock.returns.oneYear > 0.10;
-          if (selectedPerformance === '1Y > 20%') matchesPerf = stock.returns.oneYear > 0.20;
-          if (selectedPerformance === '2Y > 20%') matchesPerf = stock.returns.twoYear > 0.20;
-          if (selectedPerformance === '5Y > 50%') matchesPerf = stock.returns.fiveYear > 0.50;
-          if (selectedPerformance === 'Momentum (1Y > 30%)') matchesPerf = stock.returns.oneYear > 0.30;
-          if (selectedPerformance === 'Value (1Y < -10%)') matchesPerf = stock.returns.oneYear < -0.10;
-      }
+  const sectors = useMemo(() => {
+    const s = new Set<string>();
+    masterList.forEach(item => { if (item.industry) s.add(item.industry); });
+    return ['All', ...Array.from(s).sort()];
+  }, [masterList]);
 
-      // Annualized Volatility approx
-      const annualizedVol = stock.volatility * Math.sqrt(TRADING_DAYS);
-      let matchesRisk = true;
-      if (stock.volatility !== 0) {
-          if (selectedRisk === 'Low (<20%)') matchesRisk = annualizedVol < 0.20;
-          if (selectedRisk === 'Medium (20-30%)') matchesRisk = annualizedVol >= 0.20 && annualizedVol <= 0.30;
-          if (selectedRisk === 'High (>30%)') matchesRisk = annualizedVol > 0.30;
-      }
-
-      return matchesSearch && matchesSector && matchesUniverse && matchesPerf && matchesRisk && !alreadySelected.includes(stock.ticker);
-    });
-
-    // 2. Sort
-    return filtered.sort((a, b) => {
-      let valA = 0;
-      let valB = 0;
-
-      switch (sortBy) {
-        case 'Market Cap':
-          valA = a.marketCap;
-          valB = b.marketCap;
-          break;
-        case '1Y Return':
-          valA = a.returns.oneYear;
-          valB = b.returns.oneYear;
-          break;
-        case '5Y Return':
-          valA = a.returns.fiveYear;
-          valB = b.returns.fiveYear;
-          break;
-        case 'Volatility':
-          valA = a.volatility;
-          valB = b.volatility;
-          break;
-        case 'Name':
-          return sortOrder === 'asc' ? a.ticker.localeCompare(b.ticker) : b.ticker.localeCompare(a.ticker);
-        default:
-          valA = a.marketCap;
-          valB = b.marketCap;
-      }
-
-      return sortOrder === 'asc' ? valA - valB : valB - valA;
-    });
-
-  }, [stocks, searchTerm, selectedSector, selectedUniverse, selectedPerformance, selectedRisk, alreadySelected, sortBy, sortOrder]);
+  const filteredItems = useMemo(() => {
+    return masterList.filter(item => {
+      const matchesSearch = item.companyName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            item.symbol?.toLowerCase().includes(searchTerm.toLowerCase());
+      const isNotAlreadyInBasket = !alreadySelected.includes(item.symbol);
+      const matchesSector = sectorFilter === 'All' || item.industry === sectorFilter;
+      return matchesSearch && isNotAlreadyInBasket && matchesSector;
+    }).slice(0, 100); 
+  }, [masterList, searchTerm, alreadySelected, sectorFilter]);
 
   const toggleSelection = (ticker: string) => {
     const newSet = new Set(selectedTickers);
-    if (newSet.has(ticker)) {
-      newSet.delete(ticker);
-    } else {
-      newSet.add(ticker);
-    }
+    if (newSet.has(ticker)) newSet.delete(ticker);
+    else newSet.add(ticker);
     setSelectedTickers(newSet);
   };
 
@@ -116,215 +172,102 @@ const StockSelectorModal: React.FC<StockSelectorModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4 animate-in fade-in duration-200">
-      <div className="bg-white border border-slate-200 sm:rounded-2xl w-full max-w-5xl h-[92vh] sm:h-[85vh] flex flex-col shadow-2xl rounded-t-2xl overflow-hidden">
+    <div className="fixed inset-0 z-[500] flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-md sm:p-4 animate-in fade-in duration-300">
+      <div className="bg-white border border-slate-200 rounded-t-[32px] sm:rounded-[32px] w-full max-w-7xl h-[95vh] sm:h-[90vh] flex flex-col shadow-[0_0_80px_rgba(0,0,0,0.15)] overflow-hidden">
         
-        {/* Header */}
-        <div className="p-3 lg:p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/80">
+        <div className="px-5 py-4 sm:px-8 sm:py-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
           <div>
-            <h2 className="text-lg sm:text-xl font-bold text-slate-800 flex items-center gap-2">
-              Select Assets
-              <span className="text-xs bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full font-normal">
-                {filteredStocks.length}
+            <h2 className="text-lg sm:text-2xl font-black text-slate-900 flex items-center gap-3">
+              Asset Explorer
+              <span className="text-[9px] sm:text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 sm:px-3 sm:py-1 rounded-full font-black uppercase tracking-widest">
+                {loadingMaster ? '...' : masterList.length} Symbols
               </span>
             </h2>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors bg-white p-2 rounded-full hover:bg-slate-100 border border-slate-100">
-            <X size={20} />
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 bg-slate-50 p-2 sm:p-3 rounded-xl border border-slate-100 transition-colors">
+            <X size={20} className="sm:w-6 sm:h-6" />
           </button>
         </div>
 
-        {/* Toolbar */}
-        <div className="p-3 space-y-3 bg-white border-b border-slate-100">
-          <div className="relative">
-            <Search className="absolute left-3 top-2.5 text-slate-400 w-4 h-4" />
-            <input 
-              autoFocus
-              type="text" 
-              placeholder="Search ticker..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-2 text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all"
-            />
-          </div>
+        <div className="px-5 py-3 sm:px-8 sm:py-5 space-y-3 sm:space-y-4 bg-slate-50/50 border-b border-slate-200 shrink-0">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-6">
+              <div className="flex-1 relative">
+                <Search className="absolute left-4 top-3.5 sm:top-4 text-slate-400 w-4 h-4" />
+                <input 
+                  autoFocus
+                  type="text" 
+                  placeholder="Ticker or Industry..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-3 sm:py-3.5 text-xs sm:text-sm text-slate-900 font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all shadow-sm"
+                />
+              </div>
 
-          <div className="flex flex-col lg:flex-row gap-2">
-            {/* Filters Group */}
-            <div className="flex flex-wrap gap-2 flex-1">
-                <select 
-                    value={selectedUniverse}
-                    onChange={e => setSelectedUniverse(e.target.value)}
-                    className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-indigo-400"
-                >
-                    {universes.map(u => <option key={u} value={u}>{u}</option>)}
-                </select>
-
-                <select 
-                    value={selectedSector}
-                    onChange={e => setSelectedSector(e.target.value)}
-                    className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-indigo-400 max-w-[120px] truncate"
-                >
-                    {sectors.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-
-                <select 
-                    value={selectedPerformance}
-                    onChange={e => setSelectedPerformance(e.target.value)}
-                    className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-indigo-400"
-                >
-                    <option value="All">All Returns</option>
-                    <option value="1Y > 10%">1Y {'>'} 10%</option>
-                    <option value="Momentum (1Y > 30%)">Momentum</option>
-                    <option value="Value (1Y < -10%)">Value</option>
-                </select>
-                
-                 <select 
-                    value={selectedRisk}
-                    onChange={e => setSelectedRisk(e.target.value)}
-                    className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-indigo-400"
-                >
-                    <option value="All">All Risk</option>
-                    <option value="Low (<20%)">Low Vol</option>
-                    <option value="High (>30%)">High Vol</option>
-                </select>
-            </div>
-
-            {/* Sorting Group */}
-            <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-2 py-1.5 border border-slate-200 lg:ml-auto w-fit">
-                <ArrowDownUp size={12} className="text-slate-400" />
-                <select 
-                    value={sortBy}
-                    onChange={e => setSortBy(e.target.value)}
-                    className="bg-transparent text-xs text-slate-700 outline-none cursor-pointer"
-                >
-                    <option value="Market Cap">Cap</option>
-                    <option value="1Y Return">1Y %</option>
-                    <option value="Volatility">Vol</option>
-                    <option value="Name">Name</option>
-                </select>
-                <button 
-                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                    className="text-slate-400 hover:text-slate-600"
-                >
-                    {sortOrder === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
-                </button>
-            </div>
+              <div className="flex gap-2">
+                  <div className="relative flex-1 sm:flex-none">
+                      <LayoutGrid size={14} className="absolute left-4 top-3.5 text-indigo-500 pointer-events-none" />
+                      <select 
+                        value={sectorFilter}
+                        onChange={e => setSectorFilter(e.target.value)}
+                        className="bg-white border border-slate-200 rounded-xl pl-10 pr-8 py-3 text-[10px] sm:text-xs font-black text-slate-700 outline-none hover:border-indigo-400 cursor-pointer appearance-none shadow-sm transition-all min-w-[140px] w-full"
+                      >
+                        <option value="All">All Sectors</option>
+                        {sectors.filter(s => s !== 'All').map(s => (
+                            <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3 top-3.5 text-slate-400 pointer-events-none" />
+                  </div>
+              </div>
           </div>
         </div>
 
-        {/* Stock Grid */}
-        <div className="flex-1 overflow-y-auto p-3 custom-scrollbar bg-slate-50">
-          {filteredStocks.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-48 text-slate-500">
-                <Filter size={32} className="mb-2 opacity-50" />
-                <p className="text-sm">No stocks found</p>
-                <button 
-                    onClick={() => {
-                        setSearchTerm('');
-                        setSelectedSector('All');
-                        setSelectedPerformance('All');
-                        setSelectedRisk('All');
-                    }}
-                    className="mt-2 text-indigo-600 hover:underline text-xs font-bold"
-                >
-                    Clear all filters
-                </button>
+        <div className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar bg-white">
+          {loadingMaster ? (
+            <div className="flex flex-col items-center justify-center h-full text-slate-400">
+              <RefreshCcw className="animate-spin mb-4 text-indigo-600" size={40} />
+              <p className="font-black uppercase tracking-widest text-[10px]">Syncing Markets...</p>
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full p-8 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-100">
+                <Filter size={48} className="mx-auto mb-4 opacity-5" />
+                <p className="font-black uppercase tracking-widest text-xs text-slate-400">Empty Filterset</p>
+                <button onClick={() => {setSearchTerm(''); setSectorFilter('All');}} className="mt-3 text-indigo-600 text-[10px] font-black uppercase tracking-widest hover:underline">Reset Filters</button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                {filteredStocks.map(stock => {
-                    const isSelected = selectedTickers.has(stock.ticker);
-                    
-                    let displayMetricLabel = '1Y';
-                    let displayMetricVal = stock.returns.oneYear;
-                    
-                    if (sortBy === '5Y Return' || selectedPerformance.includes('5Y')) {
-                        displayMetricLabel = '5Y';
-                        displayMetricVal = stock.returns.fiveYear;
-                    }
-                    
-                    const annualizedVol = stock.volatility * Math.sqrt(252);
-                    const showVol = sortBy === 'Volatility' || selectedRisk !== 'All';
-
-                    // If no data loaded yet (vol 0), show placeholder
-                    const hasHistory = stock.volatility !== 0;
-
-                    return (
-                        <StockTooltip key={stock.ticker} stock={stock}>
-                            <div 
-                                onClick={() => toggleSelection(stock.ticker)}
-                                className={`
-                                    cursor-pointer rounded-lg p-3 border transition-all flex justify-between items-center group relative
-                                    ${isSelected 
-                                        ? 'bg-indigo-50 border-indigo-300 ring-1 ring-indigo-300 shadow-sm' 
-                                        : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-md'
-                                    }
-                                `}
-                            >
-                                <div className="min-w-0 pr-2">
-                                    <div className="flex items-baseline gap-2 mb-0.5">
-                                        <span className={`font-bold text-sm ${isSelected ? 'text-indigo-900' : 'text-slate-800'}`}>
-                                            {stock.ticker}
-                                        </span>
-                                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">
-                                            {stock.universe === 'Nifty 50' ? 'N50' : 'Next'}
-                                        </span>
-                                    </div>
-                                    <div className="text-[10px] text-slate-500 truncate">{stock.name}</div>
-                                </div>
-                                
-                                <div className="text-right flex-shrink-0">
-                                    {showVol ? (
-                                        <div>
-                                            <div className={`text-xs font-bold ${annualizedVol > 0.3 ? 'text-amber-600' : 'text-slate-700'}`}>
-                                                {hasHistory ? `${(annualizedVol * 100).toFixed(1)}%` : '--'}
-                                            </div>
-                                            <div className="text-[9px] text-slate-400 uppercase">Vol</div>
-                                        </div>
-                                    ) : (
-                                        <div>
-                                            <div className={`text-xs font-bold ${displayMetricVal >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                                {hasHistory 
-                                                  ? `${displayMetricVal > 0 ? '+' : ''}${(displayMetricVal * 100).toFixed(1)}%` 
-                                                  : '--'
-                                                }
-                                            </div>
-                                            <div className="text-[9px] text-slate-400 uppercase">{displayMetricLabel}</div>
-                                        </div>
-                                    )}
-                                </div>
-                                
-                                {isSelected && (
-                                    <div className="absolute top-[-6px] right-[-6px] animate-in zoom-in-50 duration-200">
-                                        <div className="bg-indigo-600 rounded-full p-0.5 border-2 border-white shadow-sm">
-                                            <Check size={10} className="text-white" />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </StockTooltip>
-                    );
-                })}
+            <div className="grid grid-cols-2 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6 pb-8">
+                {filteredItems.map(item => (
+                  <StockCard 
+                    key={item.symbol} 
+                    item={item} 
+                    isSelected={selectedTickers.has(item.symbol)} 
+                    onToggle={toggleSelection}
+                  />
+                ))}
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="p-3 border-t border-slate-200 bg-slate-50 sm:rounded-b-2xl flex justify-between items-center">
-            <span className="text-xs text-slate-500">{selectedTickers.size} selected</span>
-            <div className="flex gap-2">
+        <div className="px-5 py-4 sm:px-10 sm:py-8 border-t border-slate-100 bg-slate-50/80 flex flex-col sm:flex-row gap-4 sm:gap-6 justify-between items-center shrink-0">
+            <div className="hidden xs:flex items-center gap-4">
+                <div className="bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm flex items-center">
+                    <span className="text-sm font-black text-indigo-600">{selectedTickers.size}</span>
+                    <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest ml-3">Assets Ready</span>
+                </div>
+            </div>
+            <div className="flex gap-2 sm:gap-4 w-full sm:w-auto">
                 <button 
                     onClick={onClose}
-                    className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-200 transition-colors"
+                    className="flex-1 sm:flex-none px-6 py-3 rounded-xl text-[10px] font-black text-slate-400 hover:text-slate-800 transition-colors uppercase tracking-widest"
                 >
-                    Cancel
+                    Back
                 </button>
                 <button 
                     onClick={handleAdd}
                     disabled={selectedTickers.size === 0}
-                    className="px-4 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 flex items-center gap-2 shadow-sm shadow-indigo-200"
+                    className="flex-1 sm:flex-none px-8 py-3 rounded-xl text-[10px] font-black bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg transition-all uppercase tracking-widest active:scale-95"
                 >
-                    Add Selected
+                    Commit Selection <Check size={16} />
                 </button>
             </div>
         </div>
