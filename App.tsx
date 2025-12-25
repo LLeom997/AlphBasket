@@ -12,7 +12,7 @@ import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 import StockSelectorModal from './components/StockSelectorModal';
 import { Basket, SimulationResult } from './types';
-import { LogOut, Menu, X, Activity, RefreshCw, ChevronLeft, ChevronRight, ArrowLeft, AlertCircle, LayoutDashboard, Edit3, Plus, LineChart, PieChart as PieIcon, Sparkles } from 'lucide-react';
+import { LogOut, Menu, X, Activity, RefreshCw, ChevronLeft, ChevronRight, ArrowLeft, AlertCircle, LayoutDashboard, Edit3, Plus, LineChart, PieChart as PieIcon, Sparkles, User } from 'lucide-react';
 
 export default function App() {
   const [session, setSession] = useState<any>(null);
@@ -39,7 +39,11 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
       setSession(session);
       if (session && view === 'auth') setView('dashboard');
-      else if (!session) setView('auth');
+      else if (!session) {
+          setView('auth');
+          setCurrentBasket(null);
+          setSimulation(null);
+      }
     });
 
     initData();
@@ -52,6 +56,12 @@ export default function App() {
       await ensureStockHistory(defaultTickers);
       setStocks(getStocks());
     } catch (e) { console.error(e); }
+  };
+
+  const handleLogout = async () => {
+    setIsLoading(true);
+    await signOut();
+    setIsLoading(false);
   };
 
   const handleSimulate = async (basket: Basket) => {
@@ -149,23 +159,37 @@ export default function App() {
       <aside className={`fixed inset-y-0 left-0 z-50 bg-white border-r border-slate-200 transform transition-all duration-300 flex flex-col shrink-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static ${sidebarCollapsed ? 'w-[70px]' : 'w-64'}`}>
         <div className={`p-4 border-b border-slate-100 flex items-center h-16 ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
           {!sidebarCollapsed && <span className="font-bold text-slate-800 text-lg">AlphaBasket</span>}
-          <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="hidden lg:block text-slate-400 hover:text-slate-600 p-1.5 rounded-lg">
+          <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="hidden lg:block text-slate-400 hover:text-slate-600 p-1.5 rounded-lg transition-colors hover:bg-slate-50">
             {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
           </button>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-slate-400"><X size={20} /></button>
         </div>
 
-        <div className="p-3 flex-1 overflow-y-auto space-y-2">
-          <button onClick={() => setView('dashboard')} className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3 px-3'} py-2.5 rounded-xl ${view === 'dashboard' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500'}`}>
+        <div className="p-3 flex-1 overflow-y-auto space-y-2 mt-2">
+          <button onClick={() => setView('dashboard')} className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3 px-3'} py-3 rounded-2xl transition-all ${view === 'dashboard' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-slate-500 hover:bg-slate-50'}`}>
             <LayoutDashboard size={18} />
-            {!sidebarCollapsed && <span className="text-xs font-black uppercase">Dashboard</span>}
+            {!sidebarCollapsed && <span className="text-[10px] font-black uppercase tracking-widest">Dashboard</span>}
           </button>
           {currentBasket && (
-            <button onClick={() => setView('editor')} className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3 px-3'} py-2.5 rounded-xl ${view === 'editor' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500'}`}>
+            <button onClick={() => setView('editor')} className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3 px-3'} py-3 rounded-2xl transition-all ${view === 'editor' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-slate-500 hover:bg-slate-50'}`}>
               <Edit3 size={18} />
-              {!sidebarCollapsed && <span className="text-xs font-black uppercase">Editor</span>}
+              {!sidebarCollapsed && <span className="text-[10px] font-black uppercase tracking-widest">Editor</span>}
             </button>
           )}
+        </div>
+
+        <div className="p-3 border-t border-slate-100 space-y-2">
+           <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3 px-3'} py-3 text-slate-400`}>
+              <User size={18} />
+              {!sidebarCollapsed && <span className="text-[10px] font-bold truncate max-w-[140px]">{session?.user?.email}</span>}
+           </div>
+           <button 
+                onClick={handleLogout}
+                className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3 px-3'} py-3 rounded-2xl text-red-500 hover:bg-red-50 transition-all`}
+           >
+              <LogOut size={18} />
+              {!sidebarCollapsed && <span className="text-[10px] font-black uppercase tracking-widest">Sign Out</span>}
+           </button>
         </div>
       </aside>
 
