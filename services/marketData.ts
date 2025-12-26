@@ -27,25 +27,48 @@ export async function getNseMasterList(): Promise<any[]> {
   }
 }
 
+/**
+ * Calculates CAGR for various windows.
+ */
 function calculateMetrics(history: OHLC[]) {
-  if (history.length < 2) return { return1y: 0, return2y: 0, return5y: 0, volatility: 0 };
+  if (history.length < 2) return { 
+    return1y: 0, return2y: 0, return3y: 0, return5y: 0, return10y: 0, return15y: 0, volatility: 0 
+  };
   
   const latest = history[history.length - 1].close;
-  const p1y = history[Math.max(0, history.length - 252)]?.close ?? latest;
-  const p2y = history[Math.max(0, history.length - 504)]?.close ?? latest;
-  const p5y = history[0].close;
-
-  const returns = history.slice(1).map((h, i) => (h.close - history[i].close) / history[i].close);
-  const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
-  const variance = returns.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / returns.length;
-  const annVol = Math.sqrt(variance) * Math.sqrt(252);
-
-  return {
-    return1y: (latest - p1y) / p1y,
-    return2y: (latest - p2y) / p2y,
-    return5y: (latest - p5y) / p5y,
-    volatility: annVol
+  
+  const getCAGR = (days: number) => {
+      if (history.length <= days) return 0;
+      const startPrice = history[history.length - days].close;
+      if (startPrice <= 0) return 0;
+      const years = days / 252;
+      return Math.pow(latest / startPrice, 1 / years) - 1;
   };
+
+  // We use approximate trading days: 252 per year
+  const metrics = {
+    return1y: getCAGR(252),
+    return2y: getCAGR(504),
+    return3y: getCAGR(756),
+    return5y: getCAGR(1260),
+    return10y: getCAGR(2520),
+    return15y: getCAGR(3780),
+    volatility: 0
+  };
+
+  // Calculate daily volatility (annualized)
+  const returns = history.slice(-252).map((h, i, arr) => {
+    if (i === 0) return 0;
+    return (h.close - arr[i-1].close) / arr[i-1].close;
+  }).slice(1);
+
+  if (returns.length > 0) {
+      const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+      const variance = returns.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / returns.length;
+      metrics.volatility = Math.sqrt(variance) * Math.sqrt(252);
+  }
+
+  return metrics;
 }
 
 /**
@@ -59,44 +82,12 @@ export async function syncSingleStock(ticker: string): Promise<Stock | null> {
       return cached;
     }
 
-    // 2. Check Supabase for cached metadata
-    const { data: dbMeta } = await supabase
-      .from("stocks_metadata")
-      .select("*")
-      .eq("ticker", ticker)
-      .maybeSingle();
-
-    const isStale = !dbMeta || (Date.now() - new Date(dbMeta.last_updated).getTime() > METADATA_THRESHOLD_HOURS * 3600000);
-
-    // If metadata exists and is fresh, and we don't strictly need full candles right now (for UI display)
-    if (dbMeta && !isStale && (!cached || cached.data.length === 0)) {
-       const partialStock: Stock = {
-        ticker,
-        name: dbMeta.name || ticker,
-        sector: dbMeta.sector || "Equity",
-        universe: (dbMeta.universe as any) || "Nifty 50",
-        marketCap: dbMeta.market_cap || 0,
-        volatility: dbMeta.volatility || 0,
-        data: [],
-        currentPrice: dbMeta.current_price || 0,
-        returns: {
-          oneYear: dbMeta.return_1y || 0,
-          twoYear: dbMeta.return_2y || 0,
-          fiveYear: dbMeta.return_5y || 0
-        }
-      };
-      stocksCache.set(ticker, partialStock);
-      // If we only needed metadata for the card, return here. 
-      // Full simulation will trigger a reload with candles.
-      return partialStock;
-    }
-
-    // 3. API Fallback (Historical Data)
+    // 2. API Call (Historical Data) - We fetch 15 years to satisfy the requested CAGRs
     const normalized = normalizeSymbol(ticker);
     const today = new Date();
     const to = today.toISOString().split("T")[0];
     const fromDate = new Date();
-    fromDate.setFullYear(fromDate.getFullYear() - 5);
+    fromDate.setFullYear(fromDate.getFullYear() - 15);
     const from = fromDate.toISOString().split("T")[0];
 
     const history = await fetchStockHistory(normalized, "D", from, to);
@@ -107,8 +98,22 @@ export async function syncSingleStock(ticker: string): Promise<Stock | null> {
 
     // Find master info for market cap or sector if available
     const masterInfo = nseMasterList.find(s => s.symbol === ticker);
-    const mCap = masterInfo?.marketCap || dbMeta?.market_cap || 0;
-    const sector = masterInfo?.industry || dbMeta?.sector || "Equity";
+    
+    // Check Supabase only if masterInfo is missing for MC/Sector
+    let dbMC = 0;
+    let dbSec = "Equity";
+    if (!masterInfo) {
+        const { data: dbMeta } = await supabase
+          .from("stocks_metadata")
+          .select("market_cap, sector")
+          .eq("ticker", ticker)
+          .maybeSingle();
+        dbMC = dbMeta?.market_cap || 0;
+        dbSec = dbMeta?.sector || "Equity";
+    }
+
+    const mCap = masterInfo?.marketCap || dbMC;
+    const sector = masterInfo?.industry || dbSec;
 
     const fullStock: Stock = {
       ticker,
@@ -122,14 +127,17 @@ export async function syncSingleStock(ticker: string): Promise<Stock | null> {
       returns: {
         oneYear: metrics.return1y,
         twoYear: metrics.return2y,
-        fiveYear: metrics.return5y
+        threeYear: metrics.return3y,
+        fiveYear: metrics.return5y,
+        tenYear: metrics.return10y,
+        fifteenYear: metrics.return15y
       }
     };
 
     stocksCache.set(ticker, fullStock);
 
-    // 4. Save/Update Supabase
-    await supabase.from("stocks_metadata").upsert({
+    // 4. Save/Update Supabase (Keeping the DB schema as-is for base fields)
+    supabase.from("stocks_metadata").upsert({
       ticker,
       name: fullStock.name,
       sector: fullStock.sector,
@@ -140,7 +148,7 @@ export async function syncSingleStock(ticker: string): Promise<Stock | null> {
       return_5y: metrics.return5y,
       current_price: latestPrice,
       last_updated: new Date().toISOString()
-    });
+    }).then(); // Async fire-and-forget
 
     return fullStock;
   } catch (err) {

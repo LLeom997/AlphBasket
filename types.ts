@@ -20,7 +20,10 @@ export interface Stock {
   returns: {
     oneYear: number;
     twoYear: number;
+    threeYear: number;
     fiveYear: number;
+    tenYear: number;
+    fifteenYear: number;
   };
 }
 
