@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://gtmyjimhspaycvhzjxby.supabase.co';
@@ -6,5 +7,7 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export const signOut = async () => {
+  localStorage.removeItem('alphabasket_active_id');
+  localStorage.removeItem('alphabasket_view_mode');
   await supabase.auth.signOut();
 };

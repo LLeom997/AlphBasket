@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+  AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import { OHLC, Period, ComparisonData } from '../types';
-import { Calendar, Loader2, Filter, TrendingUp, Award, Zap, History } from 'lucide-react';
+import { Calendar, Loader2, Filter, TrendingUp, Award, Zap, History, BarChart3, LineChart as LineIcon, Activity, Target } from 'lucide-react';
 
 interface PerformanceChartsProps {
   history: OHLC[];
@@ -32,8 +32,12 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
     if (history.length > 0) {
       if (!customStart) setCustomStart(history[0].date);
       if (!customEnd) setCustomEnd(history[history.length - 1].date);
+      // Auto-select all comparisons for the second chart
+      if (comparisonSeries && activeComparisons.length === 0) {
+        setActiveComparisons(comparisonSeries.map(s => s.ticker));
+      }
     }
-  }, [history]);
+  }, [history, comparisonSeries]);
 
   useEffect(() => {
     if (!history || history.length === 0) return;
@@ -42,7 +46,6 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
       const point: any = {
         date: h.date,
         close: h.close,
-        drawdown: drawdownData[idx]?.value || 0
       };
 
       if (comparisonSeries) {
@@ -56,7 +59,7 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
     });
 
     setMergedData(merged);
-  }, [history, drawdownData, comparisonSeries]);
+  }, [history, comparisonSeries]);
 
   const toggleComparison = (ticker: string) => {
     setActiveComparisons(prev => 
@@ -78,14 +81,12 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
 
   const basketMetrics = useMemo(() => {
     if (mergedData.length < 2) return null;
-
     const getWindow = (years: number) => {
       const end = new Date(mergedData[mergedData.length - 1].date);
       const start = new Date(end);
       start.setFullYear(end.getFullYear() - years);
       return mergedData.filter(d => new Date(d.date) >= start);
     };
-
     return {
       oneYear: calculateCAGRForWindow(getWindow(1)),
       threeYear: calculateCAGRForWindow(getWindow(3)),
@@ -111,28 +112,34 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
       if (period === '1Y') startDateObj.setFullYear(endDateObj.getFullYear() - 1);
       else if (period === '3Y') startDateObj.setFullYear(endDateObj.getFullYear() - 3);
       else if (period === '5Y') startDateObj.setFullYear(endDateObj.getFullYear() - 5);
-      
       if (period !== 'ALL') {
         data = mergedData.filter(d => new Date(d.date) >= startDateObj);
       }
     }
-
-    if (data.length > 0) {
-      const basePoint = data[0];
-      const basketBaseAtStart = basePoint.close;
-      return data.map(point => {
-        const result: any = { ...point };
-        activeComparisons.forEach(ticker => {
-          if (point[ticker] !== undefined && basePoint[ticker] !== undefined && basePoint[ticker] > 0) {
-            // Re-base comparison tickers to the starting point of the BASKET in this window
-            result[ticker] = (point[ticker] / basePoint[ticker]) * basketBaseAtStart;
-          }
-        });
-        return result;
-      });
-    }
     return data;
-  }, [mergedData, period, showCustomRange, customStart, customEnd, activeComparisons]);
+  }, [mergedData, period, showCustomRange, customStart, customEnd]);
+
+  // Normalize data for the Benchmarking Chart (relative growth)
+  const normalizedData = useMemo(() => {
+    if (filteredData.length === 0) return [];
+    const basePoint = filteredData[0];
+    
+    return filteredData.map(point => {
+      const result: any = { date: point.date };
+      // Normalize basket
+      result.Basket = basePoint.close > 0 ? (point.close / basePoint.close) * 100 : 100;
+      
+      // Normalize components
+      activeComparisons.forEach(ticker => {
+        if (point[ticker] !== undefined && basePoint[ticker] !== undefined && basePoint[ticker] > 0) {
+          result[ticker] = (point[ticker] / basePoint[ticker]) * 100;
+        } else {
+          result[ticker] = 100;
+        }
+      });
+      return result;
+    });
+  }, [filteredData, activeComparisons]);
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val);
   const formatPct = (val: number) => `${(val * 100).toFixed(1)}%`;
@@ -151,7 +158,8 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      {/* 1. KEY KPI OVERVIEW */}
       {basketMetrics && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
           {[
@@ -171,9 +179,16 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
         </div>
       )}
 
-      <div className="bg-white p-4 rounded-[24px] border border-slate-200 shadow-sm space-y-3">
-        <div className="flex justify-between items-center">
-          <h3 className="text-slate-900 font-black text-[10px] uppercase tracking-widest px-1">Instrument Performance</h3>
+      {/* 2. MASTER VALUATION CHART */}
+      <div className="bg-white p-5 rounded-[32px] border border-slate-200 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-indigo-600 rounded-lg text-white">
+                <Activity size={12} />
+            </div>
+            <h3 className="text-slate-900 font-black text-[10px] uppercase tracking-widest">Instrument Master Valuation</h3>
+          </div>
+          
           <div className="flex items-center gap-0.5 bg-slate-50 p-0.5 rounded-lg border border-slate-200">
             {(['1Y', '3Y', '5Y', 'ALL'] as Period[]).map((p) => (
               <button
@@ -196,7 +211,7 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
           </div>
         </div>
 
-        <div className="h-[200px] sm:h-[350px] w-full relative">
+        <div className="h-[250px] w-full relative">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={filteredData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
               <defs>
@@ -206,34 +221,69 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-              <XAxis 
-                dataKey="date" 
-                tickFormatter={formatDate} 
-                stroke="#cbd5e1" 
-                tick={{fontSize: 7, fontWeight: 700}} 
-                minTickGap={40} 
-                axisLine={false} 
-                tickLine={false} 
-              />
-              <YAxis 
-                stroke="#cbd5e1" 
-                tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} 
-                tick={{fontSize: 7, fontWeight: 700}} 
-                domain={['auto', 'auto']} 
-                width={50} 
-                axisLine={false} 
-                tickLine={false} 
-              />
+              <XAxis dataKey="date" tickFormatter={formatDate} stroke="#cbd5e1" tick={{fontSize: 7, fontWeight: 700}} minTickGap={40} axisLine={false} tickLine={false} />
+              <YAxis stroke="#cbd5e1" tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} tick={{fontSize: 7, fontWeight: 700}} domain={['auto', 'auto']} width={50} axisLine={false} tickLine={false} />
               <Tooltip 
                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', fontSize: '9px', fontWeight: 900 }} 
-                formatter={(value: number, name: string) => [formatCurrency(value), name === 'close' ? 'Basket Value' : name]} 
+                formatter={(value: number) => [formatCurrency(value), 'Bucket Value']} 
                 labelFormatter={(label) => new Date(label).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} 
               />
-              {activeComparisons.map((ticker, idx) => (
-                <Area key={ticker} type="monotone" dataKey={ticker} stroke={COLORS[idx % COLORS.length]} strokeWidth={1.5} fill="transparent" animationDuration={500} />
-              ))}
               <Area type="monotone" dataKey="close" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorMain)" animationDuration={1000} />
             </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* 3. RELATIVE BENCHMARKING CHART */}
+      <div className="bg-white p-5 rounded-[32px] border border-slate-200 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-emerald-600 rounded-lg text-white">
+                <Target size={12} />
+            </div>
+            <h3 className="text-slate-900 font-black text-[10px] uppercase tracking-widest">Relative Component Benchmarking</h3>
+          </div>
+          <span className="text-[7px] text-slate-400 font-black uppercase tracking-widest bg-slate-50 px-2 py-1 rounded-md border border-slate-100">Base = 100</span>
+        </div>
+
+        <div className="h-[300px] w-full relative">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={normalizedData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+              <XAxis dataKey="date" tickFormatter={formatDate} stroke="#cbd5e1" tick={{fontSize: 7, fontWeight: 700}} minTickGap={40} axisLine={false} tickLine={false} />
+              <YAxis stroke="#cbd5e1" tickFormatter={(v) => `${v.toFixed(0)}`} tick={{fontSize: 7, fontWeight: 700}} domain={['auto', 'auto']} width={50} axisLine={false} tickLine={false} />
+              <Tooltip 
+                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', fontSize: '9px', fontWeight: 900 }} 
+                formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]} 
+                labelFormatter={(label) => new Date(label).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} 
+              />
+              <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{fontSize: '8px', fontWeight: 900, textTransform: 'uppercase'}} />
+              
+              {/* Individual Stocks */}
+              {activeComparisons.map((ticker, idx) => (
+                <Line 
+                  key={ticker} 
+                  type="monotone" 
+                  dataKey={ticker} 
+                  stroke={COLORS[idx % COLORS.length]} 
+                  strokeWidth={1.5} 
+                  dot={false} 
+                  animationDuration={500} 
+                  strokeOpacity={0.6}
+                />
+              ))}
+              
+              {/* Bold Basket Line - Should be the "average" / central line */}
+              <Line 
+                type="monotone" 
+                dataKey="Basket" 
+                stroke="#4f46e5" 
+                strokeWidth={4} 
+                dot={false} 
+                animationDuration={1000} 
+                strokeDasharray="5 5"
+              />
+            </LineChart>
           </ResponsiveContainer>
         </div>
 
@@ -241,7 +291,7 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
           <div className="flex items-center justify-between mb-2">
             <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
               <Filter size={10}/>
-              Relative Benchmarking
+              Benchmark Visibility
             </span>
             <button onClick={() => { if (activeComparisons.length === (comparisonSeries?.length || 0)) setActiveComparisons([]); else setActiveComparisons(comparisonSeries?.map(s => s.ticker) || []); }} className="text-[7px] font-black text-indigo-600 uppercase hover:underline">
               {activeComparisons.length === (comparisonSeries?.length || 0) ? 'Hide All' : 'Show All'}

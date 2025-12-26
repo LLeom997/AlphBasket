@@ -115,5 +115,19 @@ export interface SimulationResult {
   };
 }
 
+export interface Snapshot {
+    id: string;
+    basketId: string;
+    snapshotDate: string;
+    label: string;
+    metrics: SimulationResult['metrics'];
+    forecast: SimulationResult['forecast'];
+    basketState: {
+        items: BasketItem[];
+        allocationMode: string;
+        initialInvestment: number;
+    };
+}
+
 export type Period = '1Y' | '3Y' | '5Y' | 'ALL';
-export type AppTab = 'history' | 'predictive' | 'allocation' | 'wealth';
+export type AppTab = 'history' | 'predictive' | 'allocation' | 'wealth' | 'snapshots';

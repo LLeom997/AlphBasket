@@ -6,19 +6,21 @@ import { supabase } from "../services/supabase"
 import { 
   Plus, Trash2, Calendar, Layout, Loader2, 
   Grid3X3, List, Layers, Search, ArrowUpDown, 
-  TrendingUp, Wallet, MoreHorizontal, IndianRupee, PieChart, Image as ImageIcon
+  TrendingUp, Wallet, MoreHorizontal, IndianRupee, PieChart, Image as ImageIcon, CheckCircle2
 } from "lucide-react"
 
 interface DashboardProps {
   onSelectProject: (basket: Basket) => void
   onCreateProject: () => void
+  activeProjectId?: string
 }
 
 type ViewMode = 'grid' | 'table' | 'grouped';
 
 const Dashboard: React.FC<DashboardProps> = ({
   onSelectProject,
-  onCreateProject
+  onCreateProject,
+  activeProjectId
 }) => {
   const [projects, setProjects] = useState<Basket[]>([])
   const [loading, setLoading] = useState(true)
@@ -139,84 +141,94 @@ const Dashboard: React.FC<DashboardProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredAndSortedProjects.map(p => (
-                <tr key={p.id} onClick={() => onSelectProject(p)} className="hover:bg-indigo-50/30 cursor-pointer transition-colors group">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg overflow-hidden border border-slate-100 bg-slate-50 flex items-center justify-center shrink-0">
-                        {p.iconUrl ? (
-                            <img src={p.iconUrl} alt={p.name} className="w-full h-full object-cover" />
-                        ) : (
-                            <PieChart size={14} className="text-indigo-400" />
-                        )}
+              {filteredAndSortedProjects.map(p => {
+                const isActive = p.id === activeProjectId;
+                return (
+                  <tr key={p.id} onClick={() => onSelectProject(p)} className={`hover:bg-indigo-50/30 cursor-pointer transition-colors group ${isActive ? 'bg-indigo-50/50' : ''}`}>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg overflow-hidden border border-slate-100 bg-slate-50 flex items-center justify-center shrink-0">
+                          {p.iconUrl ? (
+                              <img src={p.iconUrl} alt={p.name} className="w-full h-full object-cover" />
+                          ) : (
+                              <PieChart size={14} className="text-indigo-400" />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 min-w-0">
+                            <span className={`font-black text-sm truncate max-w-[200px] ${isActive ? 'text-indigo-700' : 'text-slate-800'}`}>{p.name}</span>
+                            {isActive && <CheckCircle2 size={12} className="text-indigo-500 shrink-0" />}
+                        </div>
                       </div>
-                      <span className="font-black text-slate-800 text-sm truncate max-w-[200px]">{p.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                     <span className="px-3 py-1 bg-slate-100 text-[9px] font-black text-slate-500 uppercase rounded-full border border-slate-200">{p.category || 'General'}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <Layers size={14} className="text-slate-300" />
-                      <span className="text-xs font-bold text-slate-600">{p.items.length} Assets</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right font-black text-xs text-slate-900">
-                    {formatCurrency(p.initialInvestment)}
-                  </td>
-                  <td className="px-6 py-4 text-right text-[10px] font-bold text-slate-400">
-                    {new Date(p.createdAt).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex justify-center">
-                      <button onClick={e => handleDelete(e, p.id)} className="text-slate-200 hover:text-red-500 p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-6 py-4">
+                       <span className="px-3 py-1 bg-slate-100 text-[9px] font-black text-slate-500 uppercase rounded-full border border-slate-200">{p.category || 'General'}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <Layers size={14} className="text-slate-300" />
+                        <span className="text-xs font-bold text-slate-600">{p.items.length} Assets</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right font-black text-xs text-slate-900">
+                      {formatCurrency(p.initialInvestment)}
+                    </td>
+                    <td className="px-6 py-4 text-right text-[10px] font-bold text-slate-400">
+                      {new Date(p.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex justify-center">
+                        <button onClick={e => handleDelete(e, p.id)} className="text-slate-200 hover:text-red-500 p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
-            {filteredAndSortedProjects.map(project => (
-              <div
-                key={project.id}
-                onClick={() => onSelectProject(project)}
-                className="bg-white p-6 rounded-[32px] border border-slate-200 hover:border-indigo-400 hover:shadow-2xl transition-all cursor-pointer group relative overflow-hidden"
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-start gap-4 flex-1 min-w-0">
-                    <div className="w-12 h-12 bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden flex items-center justify-center shrink-0">
-                        {project.iconUrl ? (
-                            <img src={project.iconUrl} alt={project.name} className="w-full h-full object-cover" />
-                        ) : (
-                            <ImageIcon size={20} className="text-slate-300" />
-                        )}
+            {filteredAndSortedProjects.map(project => {
+              const isActive = project.id === activeProjectId;
+              return (
+                <div
+                  key={project.id}
+                  onClick={() => onSelectProject(project)}
+                  className={`bg-white p-6 rounded-[32px] border transition-all cursor-pointer group relative overflow-hidden ${isActive ? 'border-indigo-400 shadow-xl ring-2 ring-indigo-500/10' : 'border-slate-200 hover:border-indigo-400 hover:shadow-2xl'}`}
+                >
+                  {isActive && <div className="absolute top-0 right-0 p-2"><CheckCircle2 size={14} className="text-indigo-500" /></div>}
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-start gap-4 flex-1 min-w-0">
+                      <div className="w-12 h-12 bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden flex items-center justify-center shrink-0">
+                          {project.iconUrl ? (
+                              <img src={project.iconUrl} alt={project.name} className="w-full h-full object-cover" />
+                          ) : (
+                              <ImageIcon size={20} className="text-slate-300" />
+                          )}
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                          <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-1">{project.category || 'General'}</span>
+                          <h3 className={`font-black text-xl leading-tight truncate ${isActive ? 'text-indigo-900' : 'text-slate-900'}`}>{project.name}</h3>
+                      </div>
                     </div>
-                    <div className="flex flex-col min-w-0">
-                        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-1">{project.category || 'General'}</span>
-                        <h3 className="font-black text-xl text-slate-900 leading-tight truncate">{project.name}</h3>
-                    </div>
+                    <button onClick={e => handleDelete(e, project.id)} className="text-slate-200 hover:text-red-500 p-2 rounded-xl transition-all opacity-0 group-hover:opacity-100 bg-slate-50">
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-                  <button onClick={e => handleDelete(e, project.id)} className="text-slate-200 hover:text-red-500 p-2 rounded-xl transition-all opacity-0 group-hover:opacity-100 bg-slate-50">
-                    <Trash2 size={16} />
-                  </button>
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                     <div className="bg-slate-50 p-3 rounded-2xl">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Assets</p>
+                        <p className="text-sm font-black text-slate-800">{project.items.length}</p>
+                     </div>
+                     <div className="bg-slate-50 p-3 rounded-2xl">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Cap</p>
+                        <p className="text-sm font-black text-slate-800">{formatCurrency(project.initialInvestment)}</p>
+                     </div>
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                   <div className="bg-slate-50 p-3 rounded-2xl">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Assets</p>
-                      <p className="text-sm font-black text-slate-800">{project.items.length}</p>
-                   </div>
-                   <div className="bg-slate-50 p-3 rounded-2xl">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Cap</p>
-                      <p className="text-sm font-black text-slate-800">{formatCurrency(project.initialInvestment)}</p>
-                   </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : null}
       </div>

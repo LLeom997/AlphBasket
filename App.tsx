@@ -1,7 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getStocks, calculateBasketHistory, ensureStockHistory } from './services/marketData';
-import { saveProject } from './services/projectService';
+import { saveProject, fetchProjectById } from './services/projectService';
+import { saveSnapshot } from './services/snapshotService';
 import { supabase, signOut } from './services/supabase';
 import BasketBuilder from './components/BasketBuilder';
 import PerformanceCharts from './components/PerformanceCharts';
@@ -9,11 +10,17 @@ import AnalyticsPanel from './components/AnalyticsPanel';
 import AllocationDetails from './components/AllocationDetails';
 import PredictiveAnalysis from './components/PredictiveAnalysis';
 import WealthBuilder from './components/WealthBuilder';
+import SnapshotHistory from './components/SnapshotHistory';
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 import StockSelectorModal from './components/StockSelectorModal';
-import { Basket, SimulationResult, AppTab } from './types';
-import { LogOut, Menu, X, Activity, RefreshCw, ChevronLeft, ChevronRight, AlertCircle, LayoutDashboard, Edit3, LineChart, PieChart as PieIcon, Sparkles, Loader2, CheckCircle2, TrendingUp } from 'lucide-react';
+import { Basket, SimulationResult, AppTab, Snapshot } from './types';
+import { LogOut, Menu, X, Activity, RefreshCw, ChevronLeft, ChevronRight, AlertCircle, LayoutDashboard, Edit3, LineChart, PieChart as PieIcon, Sparkles, Loader2, CheckCircle2, TrendingUp, History, Camera } from 'lucide-react';
+
+const STORAGE_KEYS = {
+    ACTIVE_BASKET_ID: 'alphabasket_active_id',
+    VIEW_MODE: 'alphabasket_view_mode'
+};
 
 export default function App() {
   const [session, setSession] = useState<any>(null);
@@ -26,32 +33,73 @@ export default function App() {
   const [isSimulating, setIsSimulating] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isSavingSnapshot, setIsSavingSnapshot] = useState(false);
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [isAssetExplorerOpen, setIsAssetExplorerOpen] = useState(false);
 
+  // Persistence logic: Restore session
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const restoreSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
-      if (session) setView('dashboard');
-      else setView('auth');
-    });
+      
+      if (session) {
+        const savedBasketId = localStorage.getItem(STORAGE_KEYS.ACTIVE_BASKET_ID);
+        const savedView = localStorage.getItem(STORAGE_KEYS.VIEW_MODE) as any;
+        
+        if (savedBasketId) {
+          setIsLoading(true);
+          const basket = await fetchProjectById(savedBasketId);
+          if (basket) {
+            setCurrentBasket(basket);
+            setView(savedView || 'editor');
+            if (basket.items?.length > 0) {
+              handleSimulate(basket);
+            }
+          } else {
+            setView('dashboard');
+          }
+          setIsLoading(false);
+        } else {
+          setView('dashboard');
+        }
+      } else {
+        setView('auth');
+      }
+    };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
-      setSession(session);
-      if (session && view === 'auth') setView('dashboard');
-      else if (!session) {
+    restoreSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+      setSession(newSession);
+      
+      if (!newSession) {
           setView('auth');
           setCurrentBasket(null);
           setSimulation(null);
+          localStorage.removeItem(STORAGE_KEYS.ACTIVE_BASKET_ID);
+          localStorage.removeItem(STORAGE_KEYS.VIEW_MODE);
+      } else {
+          setView(prev => prev === 'auth' ? 'dashboard' : prev);
       }
     });
 
     initData();
     return () => subscription.unsubscribe();
   }, []);
+
+  // Persistence logic: Save state
+  useEffect(() => {
+    if (currentBasket) {
+      localStorage.setItem(STORAGE_KEYS.ACTIVE_BASKET_ID, currentBasket.id);
+    }
+    if (view !== 'auth') {
+      localStorage.setItem(STORAGE_KEYS.VIEW_MODE, view);
+    }
+  }, [currentBasket, view]);
 
   const initData = async () => {
     try {
@@ -98,6 +146,41 @@ export default function App() {
     }
   };
 
+  const handleSaveSnapshot = async () => {
+    if (!simulation || !currentBasket || !session) return;
+    const label = window.prompt("Label this Snapshot (e.g., 'Initial Strategy T0')", `Projection ${new Date().toLocaleDateString()}`);
+    if (!label) return;
+
+    setIsSavingSnapshot(true);
+    try {
+      await saveSnapshot(currentBasket, simulation, label, session.user.id);
+      if (window.confirm("Snapshot captured! View your Archive now?")) {
+          setActiveTab('snapshots');
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Failed to save snapshot.");
+    } finally {
+      setIsSavingSnapshot(false);
+    }
+  };
+
+  const handleRestoreSnapshot = async (snap: Snapshot) => {
+      if (!currentBasket) return;
+      if (!window.confirm(`Restore parameters from "${snap.label}"? This will overwrite your current active weights.`)) return;
+      
+      const restoredBasket: Basket = {
+          ...currentBasket,
+          items: snap.basketState.items,
+          allocationMode: snap.basketState.allocationMode as any,
+          initialInvestment: snap.basketState.initialInvestment
+      };
+      
+      setCurrentBasket(restoredBasket);
+      setActiveTab('history');
+      handleSimulate(restoredBasket);
+  };
+
   const openEditor = (basket: Basket) => {
     setCurrentBasket(basket);
     setSidebarCollapsed(true);
@@ -110,8 +193,9 @@ export default function App() {
   };
 
   const handleCreateNewProject = () => {
+    const newId = crypto.randomUUID();
     const newBasket: Basket = {
-        id: crypto.randomUUID(),
+        id: newId,
         name: 'New Alpha Strategy',
         description: 'Custom Synthetic Instrument',
         category: 'Growth Strategy',
@@ -140,11 +224,17 @@ export default function App() {
     setIsLoading(true);
     try {
       await saveProject(b, session.user.id);
+      setCurrentBasket(b); 
     } catch (e) {
       console.error(e);
+      setErrorMsg(e.message || "Failed to sync project.");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const navigateToDashboard = () => {
+      setView('dashboard');
   };
 
   if (view === 'auth') return <Auth />;
@@ -178,7 +268,7 @@ export default function App() {
         </div>
 
         <div className="p-2 flex-1 overflow-y-auto space-y-1 mt-2">
-          <button onClick={() => setView('dashboard')} className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3 px-3'} py-2 rounded-xl transition-all ${view === 'dashboard' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
+          <button onClick={navigateToDashboard} className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3 px-3'} py-2 rounded-xl transition-all ${view === 'dashboard' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
             <LayoutDashboard size={16} />
             {!sidebarCollapsed && <span className="text-[9px] font-black uppercase tracking-widest">Dashboard</span>}
           </button>
@@ -210,7 +300,11 @@ export default function App() {
 
         <div className="flex-1 overflow-y-auto p-2 sm:p-3 h-full custom-scrollbar">
           {view === 'dashboard' ? (
-            <Dashboard onCreateProject={handleCreateNewProject} onSelectProject={openEditor} />
+            <Dashboard 
+                onCreateProject={handleCreateNewProject} 
+                onSelectProject={openEditor} 
+                activeProjectId={currentBasket?.id}
+            />
           ) : (
             <div className="max-w-[1800px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-3 lg:h-full lg:overflow-hidden pb-10 lg:pb-0">
               <div className="lg:col-span-4 xl:col-span-3 lg:h-[calc(100vh-24px)] shrink-0 h-auto">
@@ -227,25 +321,43 @@ export default function App() {
               <div className="lg:col-span-8 xl:col-span-9 flex flex-col h-full lg:h-[calc(100vh-24px)] lg:overflow-hidden">
                 {currentBasket ? (
                   <>
-                    <div className="flex bg-white p-0.5 rounded-xl border border-slate-200 shadow-sm w-fit mb-3 shrink-0">
-                        {[
-                            { id: 'history', label: 'History', icon: LineChart },
-                            { id: 'predictive', label: 'Forecast', icon: Sparkles },
-                            { id: 'wealth', label: 'Wealth Builder', icon: TrendingUp },
-                            { id: 'allocation', label: 'Intelligence', icon: PieIcon }
-                        ].map(tab => {
-                            const Icon = tab.icon;
-                            return (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => setActiveTab(tab.id as any)}
-                                    className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all ${activeTab === tab.id ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
-                                >
-                                    <Icon size={12} />
-                                    {tab.label}
-                                </button>
-                            );
-                        })}
+                    <div className="flex items-center justify-between mb-3 shrink-0">
+                        <div className="flex bg-white p-0.5 rounded-xl border border-slate-200 shadow-sm w-fit overflow-x-auto no-scrollbar">
+                            {[
+                                { id: 'history', label: 'History', icon: LineChart },
+                                { id: 'predictive', label: 'Forecast', icon: Sparkles },
+                                { id: 'wealth', label: 'Wealth Builder', icon: TrendingUp },
+                                { id: 'allocation', label: 'Intelligence', icon: PieIcon },
+                                { id: 'snapshots', label: 'Snapshot History', icon: History }
+                            ].map(tab => {
+                                const Icon = tab.icon;
+                                return (
+                                    <button
+                                        key={tab.id}
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            setActiveTab(tab.id as any);
+                                        }}
+                                        className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                        <Icon size={12} />
+                                        {tab.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {simulation && activeTab !== 'snapshots' && (
+                            <button 
+                                onClick={handleSaveSnapshot}
+                                disabled={isSavingSnapshot}
+                                title="Capture current strategy plan for future tracking"
+                                className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 text-slate-500 text-[8px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all hover:text-indigo-600 shadow-sm group"
+                            >
+                                {isSavingSnapshot ? <RefreshCw size={12} className="animate-spin" /> : <Camera size={12} className="group-hover:scale-110 transition-transform" />}
+                                Capture Plan
+                            </button>
+                        )}
                     </div>
 
                     {errorMsg && (
@@ -280,6 +392,14 @@ export default function App() {
                             {activeTab === 'predictive' && <PredictiveAnalysis simulation={simulation} />}
                             {activeTab === 'wealth' && <WealthBuilder simulation={simulation} />}
                             {activeTab === 'allocation' && <AllocationDetails simulation={simulation} stocks={stocks} />}
+                            {activeTab === 'snapshots' && (
+                                <SnapshotHistory 
+                                    basketId={currentBasket.id} 
+                                    currentSimulation={simulation} 
+                                    onRestore={handleRestoreSnapshot}
+                                    onExit={() => setActiveTab('history')}
+                                />
+                            )}
                         </div>
                     ) : (
                         <div className="flex-1 min-h-[400px] flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-[32px] bg-slate-50/50">

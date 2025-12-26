@@ -22,8 +22,8 @@ export const uploadBasketIcon = async (basketId: string, file: File): Promise<st
             .getPublicUrl(filePath);
 
         return data.publicUrl;
-    } catch (error) {
-        console.error("Error uploading basket icon:", error);
+    } catch (error: any) {
+        console.error("Error uploading basket icon:", error?.message || error);
         return null;
     }
 };
@@ -37,27 +37,26 @@ export const saveProject = async (basket: Basket, userId: string) => {
             id: basket.id,
             user_id: userId,
             name: basket.name,
-            description: basket.description,
-            category: basket.category,
-            icon_url: basket.iconUrl,
-            items: basket.items,
-            // Fix: Include allocation_mode in the database payload
+            description: basket.description || '',
+            category: basket.category || 'General',
+            icon_url: basket.iconUrl || null,
+            items: basket.items || [],
             allocation_mode: basket.allocationMode,
             rebalance_interval: basket.rebalanceInterval,
             initial_investment: basket.initialInvestment,
             updated_at: new Date().toISOString(),
-            created_at: new Date(basket.createdAt).toISOString()
+            created_at: basket.createdAt ? new Date(basket.createdAt).toISOString() : new Date().toISOString()
         };
 
-        const { data, error } = await supabase
+        const { error } = await supabase
             .from('baskets')
-            .upsert(payload);
+            .upsert(payload, { onConflict: 'id' });
 
         if (error) throw error;
-        return data;
-    } catch (error) {
-        console.error("Error saving project to Supabase:", error);
-        throw error;
+        return true;
+    } catch (error: any) {
+        console.error("Database Sync Error:", error?.message || "Unknown error", error?.details || "");
+        throw new Error(error?.message || "Failed to save project");
     }
 };
 
@@ -74,7 +73,6 @@ export const fetchProjects = async (userId: string): Promise<Basket[]> => {
 
         if (error) throw error;
 
-        // Fix: Map allocation_mode back to allocationMode property
         return (data || []).map((row: any) => ({
             id: row.id,
             name: row.name,
@@ -87,9 +85,41 @@ export const fetchProjects = async (userId: string): Promise<Basket[]> => {
             initialInvestment: Number(row.initial_investment),
             createdAt: new Date(row.created_at || row.updated_at).getTime()
         }));
-    } catch (error) {
-        console.error("Error fetching projects from Supabase:", error);
+    } catch (error: any) {
+        console.error("Fetch Error:", error?.message || error);
         return [];
+    }
+};
+
+/**
+ * Fetches a specific portfolio by ID.
+ */
+export const fetchProjectById = async (projectId: string): Promise<Basket | null> => {
+    try {
+        const { data, error } = await supabase
+            .from('baskets')
+            .select('*')
+            .eq('id', projectId)
+            .single();
+
+        if (error) throw error;
+        if (!data) return null;
+
+        return {
+            id: data.id,
+            name: data.name,
+            description: data.description,
+            category: data.category,
+            iconUrl: data.icon_url,
+            items: data.items,
+            allocationMode: data.allocation_mode as Basket['allocationMode'] || 'weight',
+            rebalanceInterval: data.rebalance_interval as Basket['rebalanceInterval'],
+            initialInvestment: Number(data.initial_investment),
+            createdAt: new Date(data.created_at || data.updated_at).getTime()
+        };
+    } catch (error: any) {
+        console.error("Fetch By ID Error:", error?.message || error);
+        return null;
     }
 };
 
@@ -104,8 +134,8 @@ export const deleteProject = async (projectId: string) => {
             .eq('id', projectId);
 
         if (error) throw error;
-    } catch (error) {
-        console.error("Error deleting project from Supabase:", error);
+    } catch (error: any) {
+        console.error("Delete Error:", error?.message || error);
         throw error;
     }
 };

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { supabase } from '../services/supabase';
-import { Mail, Lock, Loader2, ArrowRight, UserPlus, LogIn, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Loader2, ArrowRight, UserPlus, LogIn, AlertCircle, Info } from 'lucide-react';
 
 const Auth: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -9,15 +9,17 @@ const Auth: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setMessage(null);
     
     try {
         if (isRegister) {
-            const { error: signUpError } = await supabase.auth.signUp({ 
+            const { data, error: signUpError } = await supabase.auth.signUp({ 
                 email, 
                 password,
                 options: {
@@ -25,7 +27,13 @@ const Auth: React.FC = () => {
                 }
             });
             if (signUpError) throw signUpError;
-            alert("Check your email for the confirmation link!");
+            
+            if (data?.session) {
+                setMessage("Registration successful!");
+            } else {
+                setMessage("Registration successful! Please check your email to confirm your account before logging in.");
+                setIsRegister(false);
+            }
         } else {
             const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
             if (signInError) throw signInError;
@@ -41,6 +49,8 @@ const Auth: React.FC = () => {
     setEmail('demo@alphabasket.com');
     setPassword('demo123');
     setIsRegister(false);
+    setError(null);
+    setMessage("Demo credentials loaded. Click 'Sign In' to enter.");
   };
 
   return (
@@ -60,6 +70,13 @@ const Auth: React.FC = () => {
             <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-600 text-xs font-bold animate-in slide-in-from-top-2">
                 <AlertCircle size={16} className="shrink-0" />
                 {error}
+            </div>
+        )}
+
+        {message && (
+            <div className="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3 text-emerald-600 text-xs font-bold animate-in slide-in-from-top-2">
+                <Info size={16} className="shrink-0" />
+                {message}
             </div>
         )}
 
@@ -110,7 +127,7 @@ const Auth: React.FC = () => {
 
         <div className="mt-8 pt-6 border-t border-slate-100 space-y-4">
             <button 
-                onClick={() => setIsRegister(!isRegister)}
+                onClick={() => { setIsRegister(!isRegister); setError(null); setMessage(null); }}
                 className="w-full text-center text-xs font-black text-slate-400 hover:text-indigo-600 transition-colors uppercase tracking-widest"
             >
                 {isRegister ? 'Already have an account? Sign In' : "Don't have an account? Register"}
