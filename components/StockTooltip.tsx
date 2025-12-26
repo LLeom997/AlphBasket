@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { Stock } from '../types';
-import { TrendingUp, TrendingDown, IndianRupee } from 'lucide-react';
+import { TrendingUp, TrendingDown, IndianRupee, ShieldCheck, Activity } from 'lucide-react';
 
 interface StockTooltipProps {
   stock: Stock | undefined;
@@ -41,61 +41,61 @@ const StockTooltip: React.FC<StockTooltipProps> = ({ stock, children }) => {
         
         {show && stock && (
             <div 
-                className="fixed z-[100] w-64 bg-white border border-slate-200 rounded-xl shadow-2xl p-4 animate-in fade-in zoom-in-95 duration-200 pointer-events-none"
+                className="fixed z-[100] w-72 bg-white border border-slate-200 rounded-[28px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] p-6 animate-in fade-in zoom-in-95 duration-200 pointer-events-none"
                 style={{ 
-                    top: Math.min(window.innerHeight - 280, Math.max(10, pos.top - 50)), // basic clamping
-                    left: Math.min(window.innerWidth - 270, pos.left) 
+                    top: Math.min(window.innerHeight - 380, Math.max(10, pos.top - 50)),
+                    left: Math.min(window.innerWidth - 300, pos.left) 
                 }}
             >
-                <div className="flex justify-between items-start mb-2 border-b border-slate-100 pb-2">
+                <div className="flex justify-between items-start mb-4 border-b border-slate-50 pb-4">
                     <div>
-                        <h4 className="font-bold text-slate-800 text-lg leading-tight">{stock.ticker}</h4>
-                        <span className="text-xs text-slate-500">{stock.name}</span>
+                        <h4 className="font-black text-slate-900 text-xl leading-tight">{stock.ticker}</h4>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{stock.name}</span>
                     </div>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
-                        stock.universe === 'Nifty 50' ? 'bg-indigo-50 text-indigo-700' : 'bg-emerald-50 text-emerald-700'
-                    }`}>
-                        {stock.universe === 'Nifty 50' ? 'N50' : 'Next50'}
-                    </span>
+                    <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600">
+                        <Activity size={18} />
+                    </div>
                 </div>
 
-                <div className="space-y-3">
-                    <div className="flex justify-between text-xs">
-                        <span className="text-slate-500">Sector</span>
-                        <span className="text-slate-800 font-medium text-right">{stock.sector}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                        <span className="text-slate-500">Market Cap</span>
-                        <span className="text-slate-800 font-medium text-right">{fmtCap(stock.marketCap)}</span>
-                    </div>
-                     <div className="flex justify-between text-xs">
-                        <span className="text-slate-500">Annual Volatility</span>
-                        <span className="text-amber-600 font-medium text-right">
-                             {stock.volatility ? fmt(stock.volatility * Math.sqrt(252)) : 'N/A'}
-                        </span>
+                <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <span className="text-[8px] text-slate-400 font-black uppercase tracking-widest block mb-1">Sector</span>
+                            <span className="text-xs text-slate-800 font-black">{stock.sector}</span>
+                        </div>
+                        <div>
+                            <span className="text-[8px] text-slate-400 font-black uppercase tracking-widest block mb-1">Cap</span>
+                            <span className="text-xs text-slate-800 font-black">{fmtCap(stock.marketCap)}</span>
+                        </div>
                     </div>
                     
-                    <div className="pt-2 border-t border-slate-100 space-y-1">
-                        <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Performance</p>
-                        <div className="grid grid-cols-3 gap-1">
-                             <div className="bg-slate-50 border border-slate-100 p-1.5 rounded text-center">
-                                <div className="text-[10px] text-slate-400 mb-0.5">1Y</div>
-                                <div className={`text-xs font-bold ${stock.returns.oneYear >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                                    {stock.returns.oneYear > 0 ? '+' : ''}{fmt(stock.returns.oneYear)}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <span className="text-[8px] text-slate-400 font-black uppercase tracking-widest block mb-1">Beta</span>
+                            <span className="text-xs text-slate-800 font-black">{stock.beta?.toFixed(2) || '1.00'}</span>
+                        </div>
+                        <div>
+                            <span className="text-[8px] text-slate-400 font-black uppercase tracking-widest block mb-1">Vol (Ann)</span>
+                            <span className="text-xs text-amber-600 font-black">{stock.volatility ? fmt(stock.volatility) : 'N/A'}</span>
+                        </div>
+                    </div>
+                    
+                    <div className="pt-4 border-t border-slate-50">
+                        <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest mb-3">Historical CAGR</p>
+                        <div className="grid grid-cols-2 gap-3">
+                             {[
+                                { l: '1Y', v: stock.returns.oneYear },
+                                { l: '2Y', v: stock.returns.twoYear },
+                                { l: '3Y', v: stock.returns.threeYear },
+                                { l: '5Y', v: stock.returns.fiveYear }
+                             ].map(r => (
+                                <div key={r.l} className="bg-slate-50 border border-slate-100 p-2 rounded-xl flex justify-between items-center">
+                                    <span className="text-[8px] font-black text-slate-400">{r.l}</span>
+                                    <span className={`text-[11px] font-black ${r.v >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                                        {r.v > 0 ? '+' : ''}{fmt(r.v)}
+                                    </span>
                                 </div>
-                             </div>
-                             <div className="bg-slate-50 border border-slate-100 p-1.5 rounded text-center">
-                                <div className="text-[10px] text-slate-400 mb-0.5">2Y</div>
-                                <div className={`text-xs font-bold ${stock.returns.twoYear >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                                    {stock.returns.twoYear > 0 ? '+' : ''}{fmt(stock.returns.twoYear)}
-                                </div>
-                             </div>
-                             <div className="bg-slate-50 border border-slate-100 p-1.5 rounded text-center">
-                                <div className="text-[10px] text-slate-400 mb-0.5">5Y</div>
-                                <div className={`text-xs font-bold ${stock.returns.fiveYear >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                                    {stock.returns.fiveYear > 0 ? '+' : ''}{fmt(stock.returns.fiveYear)}
-                                </div>
-                             </div>
+                             ))}
                         </div>
                     </div>
                 </div>

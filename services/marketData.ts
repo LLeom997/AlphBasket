@@ -1,15 +1,14 @@
 
 import { Stock, Basket, SimulationResult, OHLC } from "../types";
 import { fetchStockHistory } from "./marketApi";
-import { normalizeSymbol, getTickerFromNormalized } from "./symbolAdapter";
+import { normalizeSymbol } from "./symbolAdapter";
 import { runSimulation } from "./simulationEngine";
 import { supabase } from "./supabase";
 
 // Internal singleton cache
 const stocksCache = new Map<string, Stock>();
 let nseMasterList: any[] = [];
-
-const METADATA_THRESHOLD_HOURS = 24;
+let nifty50History: OHLC[] = [];
 
 /**
  * Fetches the master list of NSE companies.
@@ -28,11 +27,28 @@ export async function getNseMasterList(): Promise<any[]> {
 }
 
 /**
- * Calculates CAGR for various windows.
+ * Ensures Nifty 50 history is available for Alpha/Beta calculation
+ */
+async function ensureBenchmark() {
+    if (nifty50History.length > 0) return;
+    try {
+        const today = new Date();
+        const to = today.toISOString().split("T")[0];
+        const fromDate = new Date();
+        fromDate.setFullYear(fromDate.getFullYear() - 6); // Fetch 6 years for 5Y CAGR
+        const from = fromDate.toISOString().split("T")[0];
+        nifty50History = await fetchStockHistory("NIFTY_50", "D", from, to);
+    } catch (e) {
+        console.error("Failed to load benchmark index", e);
+    }
+}
+
+/**
+ * Calculates CAGR for various windows and risk metrics.
  */
 function calculateMetrics(history: OHLC[]) {
   if (history.length < 2) return { 
-    return1y: 0, return2y: 0, return3y: 0, return5y: 0, return10y: 0, return15y: 0, volatility: 0 
+    return1y: 0, return2y: 0, return3y: 0, return5y: 0, volatility: 0, alpha: 0, beta: 1 
   };
   
   const latest = history[history.length - 1].close;
@@ -45,18 +61,17 @@ function calculateMetrics(history: OHLC[]) {
       return Math.pow(latest / startPrice, 1 / years) - 1;
   };
 
-  // We use approximate trading days: 252 per year
   const metrics = {
     return1y: getCAGR(252),
     return2y: getCAGR(504),
     return3y: getCAGR(756),
     return5y: getCAGR(1260),
-    return10y: getCAGR(2520),
-    return15y: getCAGR(3780),
-    volatility: 0
+    volatility: 0,
+    alpha: 0,
+    beta: 1
   };
 
-  // Calculate daily volatility (annualized)
+  // 1. Annualized Volatility
   const returns = history.slice(-252).map((h, i, arr) => {
     if (i === 0) return 0;
     return (h.close - arr[i-1].close) / arr[i-1].close;
@@ -68,26 +83,58 @@ function calculateMetrics(history: OHLC[]) {
       metrics.volatility = Math.sqrt(variance) * Math.sqrt(252);
   }
 
+  // 2. Alpha & Beta calculation (simplified)
+  if (nifty50History.length > 0) {
+      const window = 252;
+      const assetSlice = history.slice(-window);
+      const marketSlice = nifty50History.slice(-window);
+      
+      const assetReturns = [];
+      const marketReturns = [];
+      
+      // Align dates roughly (last 252 trading days)
+      const count = Math.min(assetSlice.length, marketSlice.length);
+      for(let i = 1; i < count; i++) {
+          assetReturns.push((assetSlice[i].close - assetSlice[i-1].close) / assetSlice[i-1].close);
+          marketReturns.push((marketSlice[i].close - marketSlice[i-1].close) / marketSlice[i-1].close);
+      }
+
+      if (assetReturns.length > 10) {
+          const meanAsset = assetReturns.reduce((a, b) => a + b, 0) / assetReturns.length;
+          const meanMarket = marketReturns.reduce((a, b) => a + b, 0) / marketReturns.length;
+          
+          let covariance = 0;
+          let marketVar = 0;
+          for(let i = 0; i < assetReturns.length; i++) {
+              covariance += (assetReturns[i] - meanAsset) * (marketReturns[i] - meanMarket);
+              marketVar += Math.pow(marketReturns[i] - meanMarket, 2);
+          }
+          
+          metrics.beta = marketVar === 0 ? 1 : (covariance / marketVar);
+          // Simplified Alpha: Annual Excess Return - Beta * Market Annual Excess Return (assuming risk-free ~6%)
+          const rf = 0.06;
+          const marketRet = metrics.return1y; // Proxy using 1y CAGR
+          metrics.alpha = metrics.return1y - (rf + metrics.beta * (marketRet - rf));
+      }
+  }
+
   return metrics;
 }
 
 /**
- * Synchronizes a single stock by checking Memory -> Supabase -> API.
+ * Synchronizes a single stock by checking Memory -> API.
  */
 export async function syncSingleStock(ticker: string): Promise<Stock | null> {
   try {
-    // 1. Check Memory Cache
     const cached = stocksCache.get(ticker);
-    if (cached && cached.data.length > 0 && cached.currentPrice! > 0) {
-      return cached;
-    }
+    if (cached && cached.data.length > 0) return cached;
 
-    // 2. API Call (Historical Data) - We fetch 15 years to satisfy the requested CAGRs
+    await ensureBenchmark();
     const normalized = normalizeSymbol(ticker);
     const today = new Date();
     const to = today.toISOString().split("T")[0];
     const fromDate = new Date();
-    fromDate.setFullYear(fromDate.getFullYear() - 15);
+    fromDate.setFullYear(fromDate.getFullYear() - 6);
     const from = fromDate.toISOString().split("T")[0];
 
     const history = await fetchStockHistory(normalized, "D", from, to);
@@ -95,61 +142,28 @@ export async function syncSingleStock(ticker: string): Promise<Stock | null> {
 
     const metrics = calculateMetrics(history);
     const latestPrice = history[history.length - 1].close;
-
-    // Find master info for market cap or sector if available
     const masterInfo = nseMasterList.find(s => s.symbol === ticker);
     
-    // Check Supabase only if masterInfo is missing for MC/Sector
-    let dbMC = 0;
-    let dbSec = "Equity";
-    if (!masterInfo) {
-        const { data: dbMeta } = await supabase
-          .from("stocks_metadata")
-          .select("market_cap, sector")
-          .eq("ticker", ticker)
-          .maybeSingle();
-        dbMC = dbMeta?.market_cap || 0;
-        dbSec = dbMeta?.sector || "Equity";
-    }
-
-    const mCap = masterInfo?.marketCap || dbMC;
-    const sector = masterInfo?.industry || dbSec;
-
     const fullStock: Stock = {
       ticker,
       name: masterInfo?.companyName || ticker,
-      sector: sector,
+      sector: masterInfo?.industry || "Equity",
       universe: "Nifty 50",
-      marketCap: mCap,
+      marketCap: masterInfo?.marketCap || 0,
       volatility: metrics.volatility,
+      alpha: metrics.alpha,
+      beta: metrics.beta,
       data: history,
       currentPrice: latestPrice,
       returns: {
         oneYear: metrics.return1y,
         twoYear: metrics.return2y,
         threeYear: metrics.return3y,
-        fiveYear: metrics.return5y,
-        tenYear: metrics.return10y,
-        fifteenYear: metrics.return15y
+        fiveYear: metrics.return5y
       }
     };
 
     stocksCache.set(ticker, fullStock);
-
-    // 4. Save/Update Supabase (Keeping the DB schema as-is for base fields)
-    supabase.from("stocks_metadata").upsert({
-      ticker,
-      name: fullStock.name,
-      sector: fullStock.sector,
-      market_cap: mCap,
-      volatility: metrics.volatility,
-      return_1y: metrics.return1y,
-      return_2y: metrics.return2y,
-      return_5y: metrics.return5y,
-      current_price: latestPrice,
-      last_updated: new Date().toISOString()
-    }).then(); // Async fire-and-forget
-
     return fullStock;
   } catch (err) {
     console.error(`[MarketData] Sync failed for ${ticker}`, err);
@@ -157,25 +171,16 @@ export async function syncSingleStock(ticker: string): Promise<Stock | null> {
   }
 }
 
-/**
- * Legacy initialization
- */
 export async function ensureStockHistory(tickers: string[] = []) {
   for (const ticker of tickers) {
     await syncSingleStock(ticker);
   }
 }
 
-/**
- * Getter for UI
- */
 export function getStocks(): Stock[] {
   return Array.from(stocksCache.values());
 }
 
-/**
- * Simulation orchestration
- */
 export function calculateBasketHistory(basket: Basket): SimulationResult {
   return runSimulation(basket, stocksCache);
 }

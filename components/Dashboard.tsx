@@ -6,7 +6,7 @@ import { supabase } from "../services/supabase"
 import { 
   Plus, Trash2, Calendar, Layout, Loader2, 
   Grid3X3, List, Layers, Search, ArrowUpDown, 
-  TrendingUp, Wallet, MoreHorizontal, IndianRupee, PieChart
+  TrendingUp, Wallet, MoreHorizontal, IndianRupee, PieChart, Image as ImageIcon
 } from "lucide-react"
 
 interface DashboardProps {
@@ -22,8 +22,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const [projects, setProjects] = useState<Basket[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [viewMode, setViewMode] = useState<ViewMode>('grid')
+  const [viewMode, setViewMode] = useState<ViewMode>('table') 
   const [searchTerm, setSearchTerm] = useState('')
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
 
@@ -35,7 +34,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       const data = await fetchProjects(session.user.id)
       setProjects(data)
     } catch (err) {
-      setError("Failed to load portfolios.")
+      console.error("Failed to load portfolios.")
     } finally {
       setLoading(false)
     }
@@ -53,16 +52,6 @@ const Dashboard: React.FC<DashboardProps> = ({
       return factor * (a.createdAt - b.createdAt);
     });
   }, [projects, searchTerm, sortOrder]);
-
-  const groupedProjects = useMemo(() => {
-    const groups: Record<string, Basket[]> = {};
-    filteredAndSortedProjects.forEach(p => {
-      const cat = p.category || 'Uncategorized';
-      if (!groups[cat]) groups[cat] = [];
-      groups[cat].push(p);
-    });
-    return groups;
-  }, [filteredAndSortedProjects]);
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation()
@@ -84,7 +73,6 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="p-4 sm:p-10 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
-      {/* Dynamic Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight">Strategy Workbench</h1>
@@ -117,7 +105,6 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </div>
 
-      {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-white p-4 rounded-3xl border border-slate-200 shadow-sm">
         <div className="relative w-full sm:max-w-md">
            <Search size={16} className="absolute left-4 top-3.5 text-slate-400" />
@@ -138,68 +125,8 @@ const Dashboard: React.FC<DashboardProps> = ({
         </button>
       </div>
 
-      {/* Grid View Mode */}
-      {viewMode === 'grid' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredAndSortedProjects.map(project => (
-            <div
-              key={project.id}
-              onClick={() => onSelectProject(project)}
-              className="bg-white p-6 rounded-[32px] border border-slate-200 hover:border-indigo-400 hover:shadow-2xl transition-all cursor-pointer group relative overflow-hidden"
-            >
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-1">{project.category || 'General'}</span>
-                  <h3 className="font-black text-xl text-slate-900 leading-tight truncate max-w-[200px]">{project.name}</h3>
-                </div>
-                <button onClick={e => handleDelete(e, project.id)} className="text-slate-200 hover:text-red-500 p-2 rounded-xl transition-all opacity-0 group-hover:opacity-100 bg-slate-50">
-                  <Trash2 size={16} />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                 <div className="bg-slate-50 p-3 rounded-2xl">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Assets</p>
-                    <p className="text-sm font-black text-slate-800">{project.items.length} Equities</p>
-                 </div>
-                 <div className="bg-slate-50 p-3 rounded-2xl">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Cap</p>
-                    <p className="text-sm font-black text-slate-800">{formatCurrency(project.initialInvestment)}</p>
-                 </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-                <div className="flex -space-x-2">
-                   {project.items.slice(0, 3).map((it, idx) => (
-                      <div key={idx} className="w-7 h-7 rounded-full bg-indigo-50 border-2 border-white flex items-center justify-center text-[8px] font-black text-indigo-600">
-                         {it.ticker.slice(0, 2)}
-                      </div>
-                   ))}
-                   {project.items.length > 3 && (
-                     <div className="w-7 h-7 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[8px] font-black text-slate-400">
-                        +{project.items.length - 3}
-                     </div>
-                   )}
-                </div>
-                <div className="flex items-center gap-1 text-[9px] text-slate-400 font-bold">
-                  <Calendar size={12} />
-                  {new Date(project.createdAt).toLocaleDateString()}
-                </div>
-              </div>
-            </div>
-          ))}
-          <button onClick={onCreateProject} className="border-2 border-dashed border-slate-200 rounded-[32px] p-8 flex flex-col items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-400 hover:bg-indigo-50/50 transition-all gap-3 min-h-[200px]">
-            <div className="p-4 bg-slate-100 rounded-full group-hover:bg-indigo-100 transition-colors">
-              <Plus size={32} />
-            </div>
-            <span className="font-black text-xs uppercase tracking-widest">Create Strategic Basket</span>
-          </button>
-        </div>
-      )}
-
-      {/* Table View Mode */}
-      {viewMode === 'table' && (
-        <div className="bg-white border border-slate-200 rounded-[32px] shadow-sm overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-[32px] shadow-sm overflow-hidden">
+        {viewMode === 'table' ? (
           <table className="w-full text-left border-collapse">
             <thead className="bg-slate-50 border-b border-slate-200 text-[10px] font-black text-slate-400 uppercase tracking-widest">
               <tr>
@@ -216,10 +143,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <tr key={p.id} onClick={() => onSelectProject(p)} className="hover:bg-indigo-50/30 cursor-pointer transition-colors group">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600 group-hover:bg-white shadow-sm transition-all">
-                        <PieChart size={16} />
+                      <div className="w-8 h-8 rounded-lg overflow-hidden border border-slate-100 bg-slate-50 flex items-center justify-center shrink-0">
+                        {p.iconUrl ? (
+                            <img src={p.iconUrl} alt={p.name} className="w-full h-full object-cover" />
+                        ) : (
+                            <PieChart size={14} className="text-indigo-400" />
+                        )}
                       </div>
-                      <span className="font-black text-slate-800 text-sm">{p.name}</span>
+                      <span className="font-black text-slate-800 text-sm truncate max-w-[200px]">{p.name}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -248,47 +179,47 @@ const Dashboard: React.FC<DashboardProps> = ({
               ))}
             </tbody>
           </table>
-          {filteredAndSortedProjects.length === 0 && (
-             <div className="p-12 text-center text-slate-400 font-black uppercase tracking-widest text-[10px]">No Matching Portfolios Found</div>
-          )}
-        </div>
-      )}
-
-      {/* Grouped View Mode */}
-      {viewMode === 'grouped' && (
-        <div className="space-y-10">
-          {Object.entries(groupedProjects).map(([category, items]) => (
-            <div key={category} className="space-y-4">
-              <div className="flex items-center gap-4 px-2">
-                <h2 className="text-xs font-black text-indigo-600 uppercase tracking-[0.2em]">{category}</h2>
-                <div className="flex-1 h-px bg-slate-200"></div>
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded-full">{items.length} Designs</span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                 {items.map(p => (
-                    <div key={p.id} onClick={() => onSelectProject(p)} className="bg-white p-5 rounded-[24px] border border-slate-200 hover:border-indigo-400 transition-all cursor-pointer shadow-sm hover:shadow-xl group">
-                       <div className="flex justify-between items-center mb-3">
-                          <h3 className="font-black text-sm text-slate-800">{p.name}</h3>
-                          <button onClick={e => handleDelete(e, p.id)} className="text-slate-200 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-all">
-                             <Trash2 size={14} />
-                          </button>
-                       </div>
-                       <div className="flex justify-between items-end">
-                          <div className="space-y-1">
-                             <p className="text-[10px] text-slate-400 font-bold">{p.items.length} Stocks</p>
-                             <p className="text-xs font-black text-indigo-600">{formatCurrency(p.initialInvestment)}</p>
-                          </div>
-                          <div className="text-[9px] font-black text-slate-300 uppercase">
-                             {new Date(p.createdAt).getMonth() + 1}/{new Date(p.createdAt).getFullYear()}
-                          </div>
-                       </div>
+        ) : viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+            {filteredAndSortedProjects.map(project => (
+              <div
+                key={project.id}
+                onClick={() => onSelectProject(project)}
+                className="bg-white p-6 rounded-[32px] border border-slate-200 hover:border-indigo-400 hover:shadow-2xl transition-all cursor-pointer group relative overflow-hidden"
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-start gap-4 flex-1 min-w-0">
+                    <div className="w-12 h-12 bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden flex items-center justify-center shrink-0">
+                        {project.iconUrl ? (
+                            <img src={project.iconUrl} alt={project.name} className="w-full h-full object-cover" />
+                        ) : (
+                            <ImageIcon size={20} className="text-slate-300" />
+                        )}
                     </div>
-                 ))}
+                    <div className="flex flex-col min-w-0">
+                        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-1">{project.category || 'General'}</span>
+                        <h3 className="font-black text-xl text-slate-900 leading-tight truncate">{project.name}</h3>
+                    </div>
+                  </div>
+                  <button onClick={e => handleDelete(e, project.id)} className="text-slate-200 hover:text-red-500 p-2 rounded-xl transition-all opacity-0 group-hover:opacity-100 bg-slate-50">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                   <div className="bg-slate-50 p-3 rounded-2xl">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Assets</p>
+                      <p className="text-sm font-black text-slate-800">{project.items.length}</p>
+                   </div>
+                   <div className="bg-slate-50 p-3 rounded-2xl">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Cap</p>
+                      <p className="text-sm font-black text-slate-800">{formatCurrency(project.initialInvestment)}</p>
+                   </div>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }

@@ -14,7 +14,9 @@ export interface Stock {
   sector: string;
   universe: 'Nifty 50' | 'Nifty Next 50' | 'Midcap';
   marketCap: number; // in Crores
-  volatility: number; // Daily volatility
+  volatility: number; // Daily volatility annualized
+  alpha?: number; // Excess return vs benchmark
+  beta?: number; // Sensitivity vs benchmark
   data: OHLC[]; // daily data
   currentPrice?: number;
   returns: {
@@ -22,8 +24,6 @@ export interface Stock {
     twoYear: number;
     threeYear: number;
     fiveYear: number;
-    tenYear: number;
-    fifteenYear: number;
   };
 }
 
@@ -40,6 +40,7 @@ export interface Basket {
   name: string;
   description: string;
   category?: string;
+  iconUrl?: string;
   items: BasketItem[];
   allocationMode: 'weight' | 'quantity';
   rebalanceInterval: 'none' | 'monthly' | 'quarterly' | 'yearly';

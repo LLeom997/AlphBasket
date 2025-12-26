@@ -2,9 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { SimulationResult } from '../types';
 import { 
-  TrendingUp, Activity, ArrowDownRight, ShieldAlert, 
-  Calculator, Zap, Percent, BarChart3, AlertCircle,
-  Scale, ShieldCheck, Gauge, Landmark, CalendarDays, Loader2
+  TrendingUp, ArrowDownRight, Calculator, Zap, 
+  Gauge, Landmark, Activity
 } from 'lucide-react';
 
 interface AnalyticsPanelProps {
@@ -28,8 +27,6 @@ const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ simulation }) => {
         if (sipFrequency === 'Weekly') periodsPerYear = 52;
         const n = sipDuration * periodsPerYear; 
         const periodicRate = Math.pow(1 + r, 1 / periodsPerYear) - 1;
-        
-        // Formula: P * [((1 + i)^n - 1) / i] * (1 + i)
         const fv = sipAmount * ((Math.pow(1 + periodicRate, n) - 1) / periodicRate) * (1 + periodicRate);
         setSipResult(fv);
     }
@@ -39,155 +36,72 @@ const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ simulation }) => {
   const formatPct = (val: number | undefined) => val !== undefined ? (val * 100).toFixed(2) + '%' : 'N/A';
   const formatNum = (val: number) => val.toFixed(2);
 
-  if (!simulation) return (
-      <div className="bg-white p-8 rounded-[32px] border border-slate-200 border-dashed flex items-center justify-center gap-3 text-slate-400">
-          <Loader2 size={16} className="animate-spin" />
-          <span className="text-[10px] font-black uppercase tracking-widest">Aggregating Risk Metrics...</span>
-      </div>
-  );
+  if (!simulation) return null;
 
-  const { metrics, warnings } = simulation;
+  const { metrics, history } = simulation;
+  const startDate = new Date(history[0].date);
+  const endDate = new Date(history[history.length - 1].date);
+  const yearsTotal = (endDate.getTime() - startDate.getTime()) / (365.25 * 86400000);
 
-  const kpiCards = [
-    {
-      label: 'All-Time CAGR',
-      value: formatPct(metrics.cagr),
-      icon: TrendingUp,
-      color: metrics.cagr > 0.15 ? 'emerald' : (metrics.cagr > 0 ? 'indigo' : 'red'),
-      desc: 'Annualized Growth'
-    },
-    {
-      label: '1Y CAGR',
-      value: formatPct(metrics.cagr1y),
-      icon: CalendarDays,
-      color: (metrics.cagr1y || 0) > 0.15 ? 'emerald' : ((metrics.cagr1y || 0) > 0 ? 'indigo' : 'red'),
-      desc: 'Trailing 1 Year'
-    },
-    {
-      label: '3Y CAGR',
-      value: formatPct(metrics.cagr3y),
-      icon: CalendarDays,
-      color: (metrics.cagr3y || 0) > 0.15 ? 'emerald' : ((metrics.cagr3y || 0) > 0 ? 'indigo' : 'red'),
-      desc: 'Trailing 3 Year'
-    },
-    {
-      label: 'Max Drawdown',
-      value: formatPct(metrics.maxDrawdown),
-      icon: ArrowDownRight,
-      color: Math.abs(metrics.maxDrawdown) > 0.3 ? 'red' : (Math.abs(metrics.maxDrawdown) > 0.15 ? 'amber' : 'emerald'),
-      desc: 'Peak to Trough'
-    },
-    {
-      label: 'Volatility',
-      value: formatPct(metrics.volatility),
-      icon: Activity,
-      color: metrics.volatility > 0.25 ? 'amber' : 'indigo',
-      desc: 'Annualized Risk'
-    },
-    {
-      label: 'Sharpe Ratio',
-      value: formatNum(metrics.sharpeRatio),
-      icon: Scale,
-      color: metrics.sharpeRatio > 1.5 ? 'emerald' : (metrics.sharpeRatio > 0.8 ? 'indigo' : 'red'),
-      desc: 'Risk-Adjusted Return'
-    },
-    {
-      label: 'Sortino Ratio',
-      value: formatNum(metrics.sortinoRatio),
-      icon: ShieldCheck,
-      color: metrics.sortinoRatio > 2 ? 'emerald' : 'indigo',
-      desc: 'Downside Risk Efficiency'
-    },
-    {
-      label: 'Total Return',
-      value: formatPct(metrics.totalReturn),
-      icon: Landmark,
-      color: metrics.totalReturn > 0 ? 'indigo' : 'red',
-      desc: 'Absolute Portfolio Change'
-    }
+  const kpis = [
+      { label: 'ALL-TIME CAGR', val: formatPct(metrics.cagr), icon: TrendingUp, bg: 'bg-indigo-50 border-indigo-100', text: 'text-indigo-700', sub: `${yearsTotal.toFixed(1)} Yrs` },
+      { label: 'MAX DRAWDOWN', val: formatPct(metrics.maxDrawdown), icon: ArrowDownRight, bg: 'bg-rose-50 border-rose-100', text: 'text-rose-700', sub: 'Peak-to-Trough' },
+      { label: 'SHARPE RATIO', val: formatNum(metrics.sharpeRatio), icon: Gauge, bg: 'bg-emerald-50 border-emerald-100', text: 'text-emerald-700', sub: 'Risk Adjusted' },
+      { label: 'ABS RETURN', val: formatPct(metrics.totalReturn), icon: Landmark, bg: 'bg-slate-50 border-slate-200', text: 'text-slate-700', sub: 'Net Total' }
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Warning Diagnostics Section */}
-      {warnings && warnings.length > 0 && (
-        <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 space-y-2">
-            <div className="flex items-center gap-2 text-amber-700 font-black text-xs uppercase tracking-tight">
-                <AlertCircle size={16} /> Data Integrity Warnings
-            </div>
-            <ul className="space-y-1">
-                {warnings.map((w, idx) => (
-                    <li key={idx} className="text-[10px] text-amber-600 font-bold">• {w}</li>
-                ))}
-            </ul>
-        </div>
-      )}
-
-      {/* Main KPI Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpiCards.map((kpi, idx) => (
-          <div key={idx} className={`p-4 rounded-2xl border bg-white shadow-sm border-slate-100 hover:border-${kpi.color}-200 transition-all group`}>
-            <div className="flex justify-between items-start mb-2">
-                <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black">{kpi.label}</p>
-                <div className={`p-1.5 rounded-lg bg-${kpi.color}-50 text-${kpi.color}-600`}>
-                    <kpi.icon size={14} />
-                </div>
-            </div>
-            <p className={`text-xl font-black text-${kpi.color}-600`}>{kpi.value}</p>
-            <p className="text-[8px] text-slate-400 font-bold mt-1 uppercase tracking-tighter">{kpi.desc}</p>
-          </div>
-        ))}
+    <div className="grid grid-cols-1 xl:grid-cols-12 gap-3 animate-in fade-in duration-500">
+      <div className="xl:col-span-6 grid grid-cols-2 gap-2">
+          {kpis.map((k, i) => (
+              <div key={i} className={`${k.bg} border p-3 rounded-[16px] flex flex-col justify-between shadow-sm`}>
+                  <div className="flex justify-between items-center mb-0.5">
+                      <span className="text-[6px] font-black uppercase tracking-[0.2em] text-slate-400">{k.label}</span>
+                      <k.icon size={12} className={k.text} />
+                  </div>
+                  <div>
+                    <p className={`text-base font-black leading-tight ${k.text}`}>{k.val}</p>
+                    <p className="text-[6px] font-bold uppercase tracking-tight text-slate-400">{k.sub}</p>
+                  </div>
+              </div>
+          ))}
       </div>
 
-      {/* SIP PROJECTION */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-            <Calculator size={120} className="text-indigo-600" />
-        </div>
-        <div className="relative z-10">
-            <h3 className="text-slate-800 font-black mb-6 flex items-center gap-2 uppercase text-xs tracking-widest">
-                <Calculator className="w-5 h-5 text-indigo-500"/>
-                Future Value Projections (SIP)
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                <div className="space-y-6">
-                    <div className="space-y-2">
-                        <label className="text-[10px] text-slate-400 uppercase font-black">Monthly Contribution</label>
-                        <div className="relative">
-                            <span className="absolute left-4 top-3 text-slate-400 font-bold">₹</span>
-                            <input 
-                                type="number" 
-                                value={sipAmount}
-                                onChange={e => setSipAmount(Number(e.target.value))}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-sm font-black focus:ring-2 focus:ring-indigo-500/20 outline-none"
-                            />
-                        </div>
-                    </div>
-                    <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                            <label className="text-[10px] text-slate-400 uppercase font-black">Duration: {sipDuration} Years</label>
-                        </div>
-                        <input 
-                            type="range" min="1" max="30" value={sipDuration} 
-                            onChange={e => setSipDuration(Number(e.target.value))}
-                            className="w-full accent-indigo-600 h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer"
-                        />
-                    </div>
+      <div className="xl:col-span-6 bg-white p-4 rounded-[24px] border border-slate-200 shadow-sm flex flex-col justify-center">
+        <h3 className="text-slate-800 font-black mb-3 flex items-center gap-1.5 uppercase text-[8px] tracking-widest shrink-0">
+            <Calculator size={12} className="text-indigo-600"/>
+            Wealth Projection
+        </h3>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center flex-1">
+            <div className="space-y-3">
+                <div className="space-y-1">
+                    <label className="text-[6px] text-slate-400 uppercase font-black tracking-widest ml-1">Monthly SIP (₹)</label>
+                    <input 
+                        type="number" 
+                        value={sipAmount}
+                        onChange={e => setSipAmount(Number(e.target.value))}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] font-black focus:ring-2 focus:ring-indigo-500/5 outline-none transition-all"
+                    />
                 </div>
+                <div className="space-y-1">
+                    <label className="text-[6px] text-slate-400 uppercase font-black tracking-widest ml-1">Time: {sipDuration} Yrs</label>
+                    <input 
+                        type="range" min="1" max="30" value={sipDuration} 
+                        onChange={e => setSipDuration(Number(e.target.value))}
+                        className="w-full accent-indigo-600 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"
+                    />
+                </div>
+            </div>
 
-                <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 p-8 rounded-3xl text-white shadow-2xl">
-                    <p className="text-[10px] opacity-70 font-black uppercase mb-1 tracking-widest">Estimated Portfolio Value</p>
-                    <p className="text-4xl font-black">
-                        {sipResult ? formatINR(sipResult) : 'Calculating...'}
-                    </p>
-                    <div className="mt-4 pt-4 border-t border-white/10 flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
-                        <p className="text-[9px] font-bold opacity-80 uppercase tracking-tighter">
-                            Based on backtested {formatPct(metrics.cagr)} CAGR
-                        </p>
-                    </div>
-                </div>
+            <div className="bg-slate-900 p-4 rounded-[20px] text-white shadow-sm relative group overflow-hidden">
+                <p className="text-[6px] opacity-50 font-black uppercase mb-0.5 tracking-widest">Ending Corpus</p>
+                <p className="text-xl font-black">
+                    {sipResult ? formatINR(sipResult) : '...'}
+                </p>
+                <p className="mt-1 text-[6px] font-black uppercase tracking-tight text-indigo-300 flex items-center gap-1">
+                    <Activity size={8} /> On {formatPct(metrics.cagr)} CAGR
+                </p>
             </div>
         </div>
       </div>

@@ -1,5 +1,4 @@
-
-import { Basket, Stock, SimulationResult, OHLC, AllocationDetail, PortfolioAllocation, MonteCarloPath, AssetForecast } from "../types";
+import { Basket, Stock, SimulationResult, OHLC, AllocationDetail, PortfolioAllocation, MonteCarloPath, AssetForecast, ComparisonData } from "../types";
 
 /**
  * Standard Normal Random Generator (Box-Muller)
@@ -12,11 +11,7 @@ function randomNormal(): number {
 }
 
 /**
- * Perform Monte Carlo Simulation for a single series of returns.
- * @param returns Historical daily returns
- * @param initialValue Current portfolio/asset value
- * @param horizon Forecast period in days (252 = 1 year)
- * @param simulations Number of iterations (5000)
+ * Monte Carlo Simulation
  */
 function performMonteCarlo(
   returns: number[],
@@ -24,6 +19,7 @@ function performMonteCarlo(
   horizon: number = 252,
   simulations: number = 5000
 ): { paths: MonteCarloPath; probProfit: number; medianEndValue: number; endValues: number[] } {
+
   if (returns.length < 5) {
     return {
       paths: { p10: [], p50: [], p90: [] },
@@ -33,7 +29,6 @@ function performMonteCarlo(
     };
   }
 
-  // Calculate stats from log returns for Geometric Brownian Motion
   const logReturns = returns.map(r => Math.log(1 + r));
   const mean = logReturns.reduce((a, b) => a + b, 0) / logReturns.length;
   const variance = logReturns.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / logReturns.length;
@@ -41,28 +36,20 @@ function performMonteCarlo(
 
   const allEndValues: number[] = [];
   const percentilePaths: { [key: number]: number[] } = { 10: [], 50: [], 90: [] };
-
-  // To build a fan chart, we need time-sliced percentiles
   const dailySlices: number[][] = Array.from({ length: horizon + 1 }, () => []);
 
   for (let s = 0; s < simulations; s++) {
     let current = initialValue;
     dailySlices[0].push(current);
     for (let t = 1; t <= horizon; t++) {
-      // Geometric Brownian Motion formula
       const drift = mean - 0.5 * variance;
       const shock = stdDev * randomNormal();
       current = current * Math.exp(drift + shock);
-      
-      // We only store slices every few days to keep memory low, or every day for accuracy
-      // For 5000 * 252, we shouldn't store every single path point.
-      // Instead, we aggregate slices.
       dailySlices[t].push(current);
     }
     allEndValues.push(current);
   }
 
-  // Calculate percentiles for each day
   for (let t = 0; t <= horizon; t++) {
     const slice = dailySlices[t].sort((a, b) => a - b);
     percentilePaths[10].push(slice[Math.floor(simulations * 0.1)]);
@@ -86,7 +73,7 @@ function performMonteCarlo(
 }
 
 /**
- * Professional simulation engine for AlphaBasket.
+ * RUN SIMULATION ENGINE
  */
 export function runSimulation(
   basket: Basket,
@@ -102,20 +89,19 @@ export function runSimulation(
     dateSets.every(set => set.has(date))
   ).sort();
 
-  if (commonDates.length < 20) {
-    throw new Error("SimulationEngine: Insufficient overlapping data for backtest.");
-  }
+  if (commonDates.length < 20) throw new Error("SimulationEngine: Not enough overlapping history.");
 
   const startDate = commonDates[0];
   const endDate = commonDates[commonDates.length - 1];
   const getPrice = (ticker: string, date: string) =>
     stockMap.get(ticker)?.data.find(d => d.date === date)?.close || 0;
 
-  // 1. HISTORICAL ALLOCATION
   let initialCapital = basket.initialInvestment;
+
+  // 1. HISTORICAL BACKTEST ALLOCATION
   const backtestShares: Record<string, number> = {};
-  const backtestDetails: AllocationDetail[] = [];
   let backtestInvestedTotal = 0;
+  const backtestDetails: AllocationDetail[] = [];
 
   assets.forEach(a => {
     const startPrice = getPrice(a.ticker, startDate);
@@ -142,9 +128,10 @@ export function runSimulation(
     details: backtestDetails
   };
 
-  // 2. LIVE EXECUTION PLAN
+  // 2. LIVE ALLOCATION TODAY
   const liveDetails: AllocationDetail[] = [];
   let liveInvestedTotal = 0;
+
   assets.forEach(a => {
     const latestPrice = getPrice(a.ticker, endDate);
     const targetAmt = initialCapital * (a.weight / 100);
@@ -169,30 +156,49 @@ export function runSimulation(
     details: liveDetails
   };
 
-  // 3. BACKTEST GENERATION & RETURNS CALCULATION
+  // 3. BACKTEST HISTORY BUILD
   const history: OHLC[] = [];
   const basketDailyReturns: number[] = [];
   const drawdownSeries: { date: string; value: number }[] = [];
+  const comparisonSeries: ComparisonData[] = assets.map(a => ({
+    ticker: a.ticker,
+    data: [],
+    color: "#000",
+    totalReturn: 0
+  }));
+
   let peakValue = 0;
   let maxDD = 0;
   const backtestCash = initialCapital - backtestInvestedTotal;
 
   commonDates.forEach((date, idx) => {
     let portfolioValue = 0;
-    assets.forEach(a => {
-      portfolioValue += (backtestShares[a.ticker] || 0) * getPrice(a.ticker, date);
+
+    assets.forEach((a, aIdx) => {
+      const p = getPrice(a.ticker, date);
+      portfolioValue += (backtestShares[a.ticker] || 0) * p;
+      comparisonSeries[aIdx].data.push({ date, value: p });
     });
+
     const totalValue = portfolioValue + backtestCash;
-    history.push({ date, open: totalValue, high: totalValue, low: totalValue, close: totalValue, volume: 0 });
-    
+    history.push({
+      date,
+      open: totalValue,
+      high: totalValue,
+      low: totalValue,
+      close: totalValue,
+      volume: 0
+    });
+
     if (idx > 0) {
-      basketDailyReturns.push((totalValue - history[idx - 1].close) / history[idx - 1].close);
+      const prevValue = history[idx - 1].close;
+      basketDailyReturns.push((totalValue - prevValue) / prevValue);
     }
 
     if (totalValue > peakValue) peakValue = totalValue;
-    const currentDD = peakValue > 0 ? (totalValue - peakValue) / peakValue : 0;
-    if (currentDD < maxDD) maxDD = currentDD;
-    drawdownSeries.push({ date, value: currentDD });
+    const dd = peakValue > 0 ? (totalValue - peakValue) / peakValue : 0;
+    if (dd < maxDD) maxDD = dd;
+    drawdownSeries.push({ date, value: dd });
   });
 
   // 4. METRICS
@@ -201,36 +207,39 @@ export function runSimulation(
   const yearsTotal = (new Date(endDate).getTime() - new Date(startDate).getTime()) / (365.25 * 86400000);
   const cagr = yearsTotal > 0.1 ? Math.pow(finalValue / initialCapital, 1 / yearsTotal) - 1 : totalReturn;
 
-  const calculateWindowCAGR = (days: number) => {
-    if (history.length <= days) return undefined;
-    const startVal = history[history.length - days].close;
-    const years = days / 252;
-    return startVal > 0 ? Math.pow(finalValue / startVal, 1 / years) - 1 : undefined;
-  };
+  const volatility = Math.sqrt(
+    basketDailyReturns.reduce((a, b) => a + b * b, 0) / basketDailyReturns.length
+  ) * Math.sqrt(252);
 
-  const volatility = Math.sqrt(basketDailyReturns.reduce((a, b) => a + b*b, 0) / basketDailyReturns.length) * Math.sqrt(252);
+  // 5. TRUE CURRENT BUCKET VALUE FOR FORECAST
+  const currentBucketValue = liveAllocation.investedCapital + liveAllocation.uninvestedCash;
 
-  // 5. FORECASTING ENGINE (MONTE CARLO - 5000 Simulations)
-  const basketForecast = performMonteCarlo(basketDailyReturns, finalValue, 252, 5000);
+  const basketForecast = performMonteCarlo(
+    basketDailyReturns,
+    currentBucketValue,
+    252,
+    5000
+  );
 
   const assetForecasts: AssetForecast[] = assets.map(a => {
     const stock = stockMap.get(a.ticker);
-    if (!stock) return { ticker: a.ticker, expectedReturn: 0, probProfit: 0, worstCase: 0, bestCase: 0 };
-    
-    const stockReturns = [];
+    if (!stock)
+      return { ticker: a.ticker, expectedReturn: 0, probProfit: 0, worstCase: 0, bestCase: 0 };
+
+    const stockReturns: number[] = [];
     for (let i = 1; i < stock.data.length; i++) {
-        stockReturns.push((stock.data[i].close - stock.data[i-1].close) / stock.data[i-1].close);
+      stockReturns.push((stock.data[i].close - stock.data[i - 1].close) / stock.data[i - 1].close);
     }
-    
-    const assetMC = performMonteCarlo(stockReturns, stock.currentPrice || 100, 252, 1000); // Using 1k for individual for speed
+
+    const assetMC = performMonteCarlo(stockReturns, stock.currentPrice || 100, 252, 1000);
     const currentPrice = stock.currentPrice || 1;
-    
+
     return {
-        ticker: a.ticker,
-        expectedReturn: (assetMC.medianEndValue - currentPrice) / currentPrice,
-        probProfit: assetMC.probProfit,
-        worstCase: (assetMC.paths.p10[252] - currentPrice) / currentPrice,
-        bestCase: (assetMC.paths.p90[252] - currentPrice) / currentPrice
+      ticker: a.ticker,
+      expectedReturn: (assetMC.medianEndValue - currentPrice) / currentPrice,
+      probProfit: assetMC.probProfit,
+      worstCase: (assetMC.paths.p10[252] - currentPrice) / currentPrice,
+      bestCase: (assetMC.paths.p90[252] - currentPrice) / currentPrice
     };
   });
 
@@ -241,11 +250,9 @@ export function runSimulation(
     liveAllocation: liveAllocation,
     metrics: {
       cagr,
-      cagr1y: calculateWindowCAGR(252),
-      cagr3y: calculateWindowCAGR(756),
-      maxDrawdown: maxDD, 
+      maxDrawdown: maxDD,
       sharpeRatio: volatility > 0 ? (cagr - 0.06) / volatility : 0,
-      sortinoRatio: 0, 
+      sortinoRatio: 0,
       calmarRatio: Math.abs(maxDD) > 0 ? cagr / Math.abs(maxDD) : 0,
       var95: 0,
       totalReturn,
@@ -255,12 +262,12 @@ export function runSimulation(
     },
     warnings,
     drawdownSeries,
-    comparisonSeries: [],
+    comparisonSeries,
     forecast: {
-        paths: basketForecast.paths,
-        assetForecasts,
-        probProfit: basketForecast.probProfit,
-        medianEndValue: basketForecast.medianEndValue
+      paths: basketForecast.paths,
+      assetForecasts,
+      probProfit: basketForecast.probProfit,
+      medianEndValue: basketForecast.medianEndValue
     }
   };
 }

@@ -3,6 +3,32 @@ import { Basket } from '../types';
 import { supabase } from './supabase';
 
 /**
+ * Uploads a basket icon to Supabase storage.
+ */
+export const uploadBasketIcon = async (basketId: string, file: File): Promise<string | null> => {
+    try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${basketId}-${Math.random()}.${fileExt}`;
+        const filePath = `icons/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('basket-assets')
+            .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data } = supabase.storage
+            .from('basket-assets')
+            .getPublicUrl(filePath);
+
+        return data.publicUrl;
+    } catch (error) {
+        console.error("Error uploading basket icon:", error);
+        return null;
+    }
+};
+
+/**
  * Saves or updates a portfolio basket in the Supabase 'baskets' table.
  */
 export const saveProject = async (basket: Basket, userId: string) => {
@@ -13,7 +39,10 @@ export const saveProject = async (basket: Basket, userId: string) => {
             name: basket.name,
             description: basket.description,
             category: basket.category,
+            icon_url: basket.iconUrl,
             items: basket.items,
+            // Fix: Include allocation_mode in the database payload
+            allocation_mode: basket.allocationMode,
             rebalance_interval: basket.rebalanceInterval,
             initial_investment: basket.initialInvestment,
             updated_at: new Date().toISOString(),
@@ -45,12 +74,15 @@ export const fetchProjects = async (userId: string): Promise<Basket[]> => {
 
         if (error) throw error;
 
+        // Fix: Map allocation_mode back to allocationMode property
         return (data || []).map((row: any) => ({
             id: row.id,
             name: row.name,
             description: row.description,
             category: row.category,
+            iconUrl: row.icon_url,
             items: row.items,
+            allocationMode: row.allocation_mode as Basket['allocationMode'] || 'weight',
             rebalanceInterval: row.rebalance_interval as Basket['rebalanceInterval'],
             initialInvestment: Number(row.initial_investment),
             createdAt: new Date(row.created_at || row.updated_at).getTime()
