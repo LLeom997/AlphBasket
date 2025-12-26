@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { SimulationResult, Stock } from '../types';
-import { PieChart, Wallet, Layers, Scale, Loader2 } from 'lucide-react';
+import { PieChart, Wallet, Layers, Scale, Loader2, Sigma } from 'lucide-react';
 
 interface AllocationDetailsProps {
   simulation: SimulationResult | null;
@@ -18,8 +18,10 @@ const AllocationDetails: React.FC<AllocationDetailsProps> = ({ simulation, stock
 
   const { totalCapital, investedCapital, uninvestedCash, details } = simulation.liveAllocation;
   
+  // Summing up values from individual details to ensure UI consistency
   const totalShares = details.reduce((sum, d) => sum + d.sharesBought, 0);
-  const totalActualWeight = (investedCapital / totalCapital) * 100;
+  const totalActualAmount = details.reduce((sum, d) => sum + d.actualAmount, 0);
+  const totalActualWeight = details.reduce((sum, d) => sum + d.actualWeight, 0);
   const totalTargetWeight = details.reduce((sum, d) => sum + d.targetWeight, 0);
 
   const formatMoney = (n: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
@@ -30,10 +32,10 @@ const AllocationDetails: React.FC<AllocationDetailsProps> = ({ simulation, stock
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-[24px] shadow-sm">
               <p className="text-[7px] font-black uppercase tracking-widest text-indigo-700 opacity-70 mb-0.5">Effective Invested</p>
-              <p className="text-lg font-black text-indigo-900">{formatMoney(investedCapital)}</p>
+              <p className="text-lg font-black text-indigo-900">{formatMoney(totalActualAmount)}</p>
               <div className="mt-1 flex items-center justify-between text-[8px] font-bold text-indigo-600">
-                  <span>Unused Cash: {formatMoney(uninvestedCash)}</span>
-                  <span>{formatPct(totalActualWeight)} Use</span>
+                  <span>Unused Cash: {formatMoney(totalCapital - totalActualAmount)}</span>
+                  <span>{formatPct(totalActualWeight)} Deployed</span>
               </div>
           </div>
 
@@ -45,7 +47,7 @@ const AllocationDetails: React.FC<AllocationDetailsProps> = ({ simulation, stock
 
           <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-[24px] shadow-sm">
               <p className="text-[7px] font-black uppercase tracking-widest text-emerald-700 opacity-70 mb-0.5">Strategy Drift</p>
-              <p className="text-lg font-black text-emerald-900">{formatPct(totalTargetWeight - totalActualWeight)}</p>
+              <p className="text-lg font-black text-emerald-900">{formatPct(Math.abs(totalTargetWeight - totalActualWeight))}</p>
               <Scale size={12} className="mt-1 text-emerald-400" />
           </div>
       </div>
@@ -100,6 +102,29 @@ const AllocationDetails: React.FC<AllocationDetailsProps> = ({ simulation, stock
                         );
                     })}
                 </tbody>
+                <tfoot className="bg-slate-900 text-white">
+                    <tr>
+                        <td className="px-5 py-4">
+                            <div className="flex items-center gap-2">
+                                <Sigma size={14} className="text-indigo-400" />
+                                <span className="text-[10px] font-black uppercase tracking-widest">Total Plan</span>
+                            </div>
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                            {/* Spacer */}
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                            <span className="text-[10px] font-black">{formatPct(totalActualWeight)}</span>
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                            <span className="text-[11px] font-black">{totalShares.toLocaleString()} <span className="text-[8px] opacity-50 uppercase">Units</span></span>
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                            <div className="text-[12px] font-black text-indigo-300">{formatMoney(totalActualAmount)}</div>
+                            <div className="text-[7px] font-bold uppercase tracking-widest opacity-50">Market Value Deployed</div>
+                        </td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
       </div>

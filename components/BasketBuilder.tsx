@@ -182,7 +182,7 @@ const BasketBuilder: React.FC<BasketBuilderProps> = ({ availableStocks, initialB
   const currentTotalWeight = items.reduce((sum, i) => sum + (i.suppressed ? 0 : i.weight), 0);
 
   return (
-    <div className="bg-white flex flex-col h-full border border-slate-200 shadow-sm rounded-[24px] overflow-hidden">
+    <div className="bg-white flex flex-col h-full border border-slate-200 shadow-sm rounded-[24px] overflow-hidden min-h-[500px] lg:min-h-0">
       <div className="p-4 border-b border-slate-100 bg-white shrink-0">
           <div className="flex justify-between items-start mb-3 gap-3">
               <div className="relative group shrink-0">
@@ -270,7 +270,7 @@ const BasketBuilder: React.FC<BasketBuilderProps> = ({ availableStocks, initialB
           </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/10">
+      <div className="flex-1 min-h-[250px] lg:min-h-0 overflow-y-auto custom-scrollbar bg-slate-50/10">
           <div className="p-3 flex items-center justify-between sticky top-0 bg-slate-50/80 backdrop-blur-sm z-10">
               <div className="flex items-center gap-1.5">
                   <LayoutList size={12} className="text-indigo-600" />

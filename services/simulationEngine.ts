@@ -1,3 +1,4 @@
+
 import { Basket, Stock, SimulationResult, OHLC, AllocationDetail, PortfolioAllocation, MonteCarloPath, AssetForecast, ComparisonData } from "../types";
 
 /**
@@ -20,7 +21,7 @@ function performMonteCarlo(
   simulations: number = 5000
 ): { paths: MonteCarloPath; probProfit: number; medianEndValue: number; endValues: number[] } {
 
-  if (returns.length < 5) {
+  if (returns.length < 5 || initialValue <= 0) {
     return {
       paths: { p10: [], p50: [], p90: [] },
       probProfit: 0,
@@ -98,7 +99,7 @@ export function runSimulation(
 
   let initialCapital = basket.initialInvestment;
 
-  // 1. HISTORICAL BACKTEST ALLOCATION
+  // 1. HISTORICAL BACKTEST ALLOCATION (Discrete Shares at Start of Period)
   const backtestShares: Record<string, number> = {};
   let backtestInvestedTotal = 0;
   const backtestDetails: AllocationDetail[] = [];
@@ -128,20 +129,28 @@ export function runSimulation(
     details: backtestDetails
   };
 
-  // 2. LIVE ALLOCATION TODAY
+  // 2. LIVE ALLOCATION TODAY (Using Strict Discrete Valuation)
   const liveDetails: AllocationDetail[] = [];
   let liveInvestedTotal = 0;
 
   assets.forEach(a => {
     const latestPrice = getPrice(a.ticker, endDate);
-    const targetAmt = initialCapital * (a.weight / 100);
-    const qty = latestPrice > 0 ? Math.floor(targetAmt / latestPrice) : 0;
+    let qty = 0;
+    
+    if (basket.allocationMode === 'quantity' && a.shares !== undefined) {
+      qty = a.shares;
+    } else {
+      const targetAmt = initialCapital * (a.weight / 100);
+      qty = latestPrice > 0 ? Math.floor(targetAmt / latestPrice) : 0;
+    }
+
     const actualAmt = qty * latestPrice;
     liveInvestedTotal += actualAmt;
+    
     liveDetails.push({
       ticker: a.ticker,
       targetWeight: a.weight,
-      targetAmount: targetAmt,
+      targetAmount: initialCapital * (a.weight / 100),
       priceAtBuy: latestPrice,
       sharesBought: qty,
       actualAmount: actualAmt,
@@ -212,7 +221,8 @@ export function runSimulation(
   ) * Math.sqrt(252);
 
   // 5. TRUE CURRENT BUCKET VALUE FOR FORECAST
-  const currentBucketValue = liveAllocation.investedCapital + liveAllocation.uninvestedCash;
+  // We use the liveInvestedTotal which now correctly represents exactly qty * price
+  const currentBucketValue = liveInvestedTotal;
 
   const basketForecast = performMonteCarlo(
     basketDailyReturns,

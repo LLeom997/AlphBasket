@@ -212,8 +212,8 @@ export default function App() {
           {view === 'dashboard' ? (
             <Dashboard onCreateProject={handleCreateNewProject} onSelectProject={openEditor} />
           ) : (
-            <div className="max-w-[1800px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-3 h-full overflow-hidden">
-              <div className="lg:col-span-4 xl:col-span-3 lg:h-[calc(100vh-24px)] shrink-0">
+            <div className="max-w-[1800px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-3 lg:h-full lg:overflow-hidden pb-10 lg:pb-0">
+              <div className="lg:col-span-4 xl:col-span-3 lg:h-[calc(100vh-24px)] shrink-0 h-auto">
                 <BasketBuilder 
                   availableStocks={stocks} 
                   initialBasket={currentBasket} 
@@ -224,7 +224,7 @@ export default function App() {
                 />
               </div>
 
-              <div className="lg:col-span-8 xl:col-span-9 flex flex-col h-full lg:h-[calc(100vh-24px)] overflow-hidden">
+              <div className="lg:col-span-8 xl:col-span-9 flex flex-col h-full lg:h-[calc(100vh-24px)] lg:overflow-hidden">
                 {currentBasket ? (
                   <>
                     <div className="flex bg-white p-0.5 rounded-xl border border-slate-200 shadow-sm w-fit mb-3 shrink-0">
@@ -255,17 +255,17 @@ export default function App() {
                     )}
 
                     {isSimulating ? (
-                        <div className="flex-1 flex flex-col items-center justify-center bg-white rounded-[32px] border border-slate-200 shadow-sm animate-pulse">
+                        <div className="flex-1 min-h-[400px] flex flex-col items-center justify-center bg-white rounded-[32px] border border-slate-200 shadow-sm animate-pulse">
                             <RefreshCw size={40} className="text-indigo-600 animate-spin mb-4" />
                             <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Synthesizing Alpha Stream...</p>
                         </div>
                     ) : showSuccess ? (
-                        <div className="flex-1 flex flex-col items-center justify-center bg-emerald-50 rounded-[32px] border border-emerald-100 shadow-sm animate-in zoom-in duration-300">
+                        <div className="flex-1 min-h-[400px] flex flex-col items-center justify-center bg-emerald-50 rounded-[32px] border border-emerald-100 shadow-sm animate-in zoom-in duration-300">
                              <CheckCircle2 size={48} className="text-emerald-500 mb-4" />
                              <p className="text-[12px] font-black text-emerald-800 uppercase tracking-widest">Backtest Synchronized</p>
                         </div>
                     ) : simulation ? (
-                        <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 pb-4 animate-in fade-in duration-500">
+                        <div className="flex-1 lg:overflow-y-auto custom-scrollbar pr-1 pb-4 animate-in fade-in duration-500">
                             {activeTab === 'history' && (
                                 <div className="space-y-3">
                                     <AnalyticsPanel simulation={simulation} />
@@ -280,7 +280,7 @@ export default function App() {
                             {activeTab === 'allocation' && <AllocationDetails simulation={simulation} stocks={stocks} />}
                         </div>
                     ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-[32px] bg-slate-50/50">
+                        <div className="flex-1 min-h-[400px] flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-[32px] bg-slate-50/50">
                             <Activity size={32} className="mb-2 opacity-10" />
                             <div className="text-center px-4">
                                 <p className="font-black uppercase tracking-widest text-[10px] text-slate-600">Awaiting Backtest</p>
@@ -290,7 +290,7 @@ export default function App() {
                     )}
                   </>
                 ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-[32px] bg-slate-50/50">
+                    <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-[32px] bg-slate-50/50">
                         <Activity size={32} className="mb-2 opacity-10" />
                         <p className="font-black uppercase tracking-widest text-[10px]">Initialize Strategy</p>
                     </div>
