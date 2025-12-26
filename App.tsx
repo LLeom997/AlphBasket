@@ -8,16 +8,17 @@ import PerformanceCharts from './components/PerformanceCharts';
 import AnalyticsPanel from './components/AnalyticsPanel';
 import AllocationDetails from './components/AllocationDetails';
 import PredictiveAnalysis from './components/PredictiveAnalysis';
+import WealthBuilder from './components/WealthBuilder';
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 import StockSelectorModal from './components/StockSelectorModal';
-import { Basket, SimulationResult } from './types';
-import { LogOut, Menu, X, Activity, RefreshCw, ChevronLeft, ChevronRight, AlertCircle, LayoutDashboard, Edit3, LineChart, PieChart as PieIcon, Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
+import { Basket, SimulationResult, AppTab } from './types';
+import { LogOut, Menu, X, Activity, RefreshCw, ChevronLeft, ChevronRight, AlertCircle, LayoutDashboard, Edit3, LineChart, PieChart as PieIcon, Sparkles, Loader2, CheckCircle2, TrendingUp } from 'lucide-react';
 
 export default function App() {
   const [session, setSession] = useState<any>(null);
   const [view, setView] = useState<'auth' | 'dashboard' | 'editor'>('auth');
-  const [activeTab, setActiveTab] = useState<'history' | 'predictive' | 'allocation'>('history');
+  const [activeTab, setActiveTab] = useState<AppTab>('history');
   
   const [stocks, setStocks] = useState<any[]>([]);
   const [currentBasket, setCurrentBasket] = useState<Basket | null>(null);
@@ -83,7 +84,6 @@ export default function App() {
       setStocks(getStocks());
       const result = calculateBasketHistory(basket);
       
-      // Artificial delay for animation feedback
       await new Promise(r => setTimeout(r, 800));
       
       setSimulation(result);
@@ -231,6 +231,7 @@ export default function App() {
                         {[
                             { id: 'history', label: 'History', icon: LineChart },
                             { id: 'predictive', label: 'Forecast', icon: Sparkles },
+                            { id: 'wealth', label: 'Wealth Builder', icon: TrendingUp },
                             { id: 'allocation', label: 'Intelligence', icon: PieIcon }
                         ].map(tab => {
                             const Icon = tab.icon;
@@ -277,6 +278,7 @@ export default function App() {
                                 </div>
                             )}
                             {activeTab === 'predictive' && <PredictiveAnalysis simulation={simulation} />}
+                            {activeTab === 'wealth' && <WealthBuilder simulation={simulation} />}
                             {activeTab === 'allocation' && <AllocationDetails simulation={simulation} stocks={stocks} />}
                         </div>
                     ) : (

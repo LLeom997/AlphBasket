@@ -90,14 +90,10 @@ export interface SimulationResult {
   basketId: string;
   history: OHLC[];
   buyAndHoldHistory?: OHLC[];
-  // Backtest allocation (at start of period)
   initialAllocation: PortfolioAllocation;
-  // Live execution plan (at latest market price)
   liveAllocation: PortfolioAllocation;
   metrics: {
     cagr: number;
-    cagr1y?: number;
-    cagr3y?: number;
     maxDrawdown: number;
     sharpeRatio: number;
     sortinoRatio: number;
@@ -120,3 +116,4 @@ export interface SimulationResult {
 }
 
 export type Period = '1Y' | '3Y' | '5Y' | 'ALL';
+export type AppTab = 'history' | 'predictive' | 'allocation' | 'wealth';
