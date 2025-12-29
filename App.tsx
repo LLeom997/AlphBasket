@@ -135,6 +135,40 @@ export default function App() {
       await new Promise(r => setTimeout(r, 800));
       
       setSimulation(result);
+
+      // Growth Score Calculation: Derived from CAGR/Vol and Forward Drift
+      const growthScore = Math.min(100, Math.max(0, (result.metrics.cagr / 0.30) * 100));
+      
+      // Calculate Real-time Performance Metrics
+      const history = result.history;
+      const latestPoint = history[history.length - 1];
+      const prevPoint = history.length > 1 ? history[history.length - 2] : latestPoint;
+      
+      const todayReturn = prevPoint.close > 0 ? (latestPoint.close - prevPoint.close) / prevPoint.close : 0;
+      
+      // If we don't have an inception value yet, use the current value as the baseline
+      const inceptionValue = basket.inceptionValue || latestPoint.close;
+      const inceptionReturn = inceptionValue > 0 ? (latestPoint.close - inceptionValue) / inceptionValue : 0;
+
+      const updatedBasket: Basket = {
+          ...basket,
+          cagr: result.metrics.cagr,
+          volatility: result.metrics.volatility,
+          maxDrawdown: result.metrics.maxDrawdown,
+          growthScore: growthScore,
+          inceptionValue: inceptionValue,
+          todayReturn: todayReturn,
+          inceptionReturn: inceptionReturn
+      };
+
+      setCurrentBasket(updatedBasket);
+
+      // PERSIST KPIs TO DATABASE IMMEDIATELY AFTER BACKTEST
+      if (session) {
+          await saveProject(updatedBasket, session.user.id);
+          console.log("Persisted backtest metrics to Supabase:", updatedBasket.name);
+      }
+
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 2000);
     } catch (error: any) {
@@ -173,7 +207,11 @@ export default function App() {
           ...currentBasket,
           items: snap.basketState.items,
           allocationMode: snap.basketState.allocationMode as any,
-          initialInvestment: snap.basketState.initialInvestment
+          initialInvestment: snap.basketState.initialInvestment,
+          cagr: snap.metrics.cagr,
+          volatility: snap.metrics.volatility,
+          maxDrawdown: snap.metrics.maxDrawdown,
+          growthScore: Math.min(100, Math.max(0, (snap.metrics.cagr / 0.30) * 100))
       };
       
       setCurrentBasket(restoredBasket);
@@ -223,8 +261,15 @@ export default function App() {
     if (!session) return;
     setIsLoading(true);
     try {
-      await saveProject(b, session.user.id);
-      setCurrentBasket(b); 
+      const basketToSave = {
+          ...b,
+          cagr: simulation ? simulation.metrics.cagr : b.cagr,
+          volatility: simulation ? simulation.metrics.volatility : b.volatility,
+          maxDrawdown: simulation ? simulation.metrics.maxDrawdown : b.maxDrawdown,
+          growthScore: simulation ? Math.min(100, Math.max(0, (simulation.metrics.cagr / 0.30) * 100)) : b.growthScore
+      };
+      await saveProject(basketToSave, session.user.id);
+      setCurrentBasket(basketToSave); 
     } catch (e) {
       console.error(e);
       setErrorMsg(e.message || "Failed to sync project.");
@@ -270,7 +315,7 @@ export default function App() {
         <div className="p-2 flex-1 overflow-y-auto space-y-1 mt-2">
           <button onClick={navigateToDashboard} className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3 px-3'} py-2 rounded-xl transition-all ${view === 'dashboard' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
             <LayoutDashboard size={16} />
-            {!sidebarCollapsed && <span className="text-[9px] font-black uppercase tracking-widest">Dashboard</span>}
+            {!sidebarCollapsed && <span className="text-[9px] font-black uppercase tracking-widest">Workbench</span>}
           </button>
           {currentBasket && (
             <button onClick={() => setView('editor')} className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3 px-3'} py-2 rounded-xl transition-all ${view === 'editor' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>

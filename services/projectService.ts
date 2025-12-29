@@ -44,6 +44,14 @@ export const saveProject = async (basket: Basket, userId: string) => {
             allocation_mode: basket.allocationMode,
             rebalance_interval: basket.rebalanceInterval,
             initial_investment: basket.initialInvestment,
+            cagr: basket.cagr || 0,
+            volatility: basket.volatility || 0,
+            // Fix: maxDrawdown is camelCase in types.ts but snake_case in payload mapping
+            max_drawdown: basket.maxDrawdown || 0,
+            growth_score: basket.growthScore || 0,
+            inception_value: basket.inceptionValue || null,
+            today_return: basket.todayReturn || 0,
+            inception_return: basket.inceptionReturn || 0,
             updated_at: new Date().toISOString(),
             created_at: basket.createdAt ? new Date(basket.createdAt).toISOString() : new Date().toISOString()
         };
@@ -68,7 +76,6 @@ export const fetchProjects = async (userId: string): Promise<Basket[]> => {
         const { data, error } = await supabase
             .from('baskets')
             .select('*')
-            .eq('user_id', userId)
             .order('updated_at', { ascending: false });
 
         if (error) throw error;
@@ -83,7 +90,14 @@ export const fetchProjects = async (userId: string): Promise<Basket[]> => {
             allocationMode: row.allocation_mode as Basket['allocationMode'] || 'weight',
             rebalanceInterval: row.rebalance_interval as Basket['rebalanceInterval'],
             initialInvestment: Number(row.initial_investment),
-            createdAt: new Date(row.created_at || row.updated_at).getTime()
+            createdAt: new Date(row.created_at || row.updated_at).getTime(),
+            cagr: Number(row.cagr || 0),
+            volatility: Number(row.volatility || 0),
+            maxDrawdown: Number(row.max_drawdown || 0),
+            growthScore: Number(row.growth_score || 0),
+            inceptionValue: row.inception_value ? Number(row.inception_value) : undefined,
+            todayReturn: Number(row.today_return || 0),
+            inceptionReturn: Number(row.inception_return || 0)
         }));
     } catch (error: any) {
         console.error("Fetch Error:", error?.message || error);
@@ -115,7 +129,14 @@ export const fetchProjectById = async (projectId: string): Promise<Basket | null
             allocationMode: data.allocation_mode as Basket['allocationMode'] || 'weight',
             rebalanceInterval: data.rebalance_interval as Basket['rebalanceInterval'],
             initialInvestment: Number(data.initial_investment),
-            createdAt: new Date(data.created_at || data.updated_at).getTime()
+            createdAt: new Date(data.created_at || data.updated_at).getTime(),
+            cagr: Number(data.cagr || 0),
+            volatility: Number(data.volatility || 0),
+            maxDrawdown: Number(data.max_drawdown || 0),
+            growthScore: Number(data.growth_score || 0),
+            inceptionValue: data.inception_value ? Number(data.inception_value) : undefined,
+            todayReturn: Number(data.today_return || 0),
+            inceptionReturn: Number(data.inception_return || 0)
         };
     } catch (error: any) {
         console.error("Fetch By ID Error:", error?.message || error);

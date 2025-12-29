@@ -1,10 +1,15 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+  AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, 
+  Tooltip, ResponsiveContainer, Legend, ComposedChart, Bar, Cell
 } from 'recharts';
 import { OHLC, Period, ComparisonData } from '../types';
-import { Calendar, Loader2, Filter, TrendingUp, Award, Zap, History, BarChart3, LineChart as LineIcon, Activity, Target } from 'lucide-react';
+import { 
+  Calendar, Loader2, Filter, TrendingUp, Award, Zap, 
+  History, BarChart3, LineChart as LineIcon, Activity, Target,
+  CandlestickChart, Layout
+} from 'lucide-react';
 
 interface PerformanceChartsProps {
   history: OHLC[];
@@ -15,12 +20,102 @@ interface PerformanceChartsProps {
 
 const COLORS = ['#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#8b5cf6', '#ec4899', '#f97316'];
 
+const Candlestick = (props: any) => {
+  const { x, y, width, height, payload } = props;
+  if (!payload) return null;
+  
+  const { open, close, high, low } = payload;
+  const isUp = close >= open;
+  const color = isUp ? '#10b981' : '#ef4444';
+
+  // Y-axis in Recharts is inverted (0 at top).
+  // We need to figure out the scaling within this bar's context.
+  // Recharts Bar component 'y' and 'height' are for the range between 'dataKey' and zero.
+  // For custom shapes on candles, we use a simple proportional calculation.
+  const minVal = Math.min(open, close);
+  const maxVal = Math.max(open, close);
+  const bodyHeight = Math.max(2, height);
+
+  // Proportional wick logic (assuming 'y' and 'height' represent the close vs baseline)
+  // To be perfectly accurate we'd need internal scales, but SVG relative drawing is usually enough.
+  const ratio = height / Math.max(0.1, Math.abs(open - close));
+  const wickTop = y - (high - maxVal) * ratio;
+  const wickBottom = y + height + (minVal - low) * ratio;
+
+  return (
+    <g>
+      <line
+        x1={x + width / 2}
+        y1={wickTop}
+        x2={x + width / 2}
+        y2={wickBottom}
+        stroke={color}
+        strokeWidth={1}
+      />
+      <rect
+        x={x}
+        y={y}
+        width={width}
+        height={bodyHeight}
+        fill={color}
+        stroke={color}
+      />
+    </g>
+  );
+};
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    
+    return (
+      <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-2xl text-white min-w-[180px]">
+        <div className="flex justify-between items-center mb-2 pb-2 border-b border-slate-800">
+            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                {new Date(label).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+            </span>
+            <Activity size={10} className="text-indigo-400" />
+        </div>
+        
+        <div className="space-y-1.5">
+            <div className="flex justify-between gap-4">
+                <span className="text-[8px] font-bold text-slate-500 uppercase">Open</span>
+                <span className="text-[10px] font-black">₹{data.open?.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+                <span className="text-[8px] font-bold text-slate-500 uppercase">High</span>
+                <span className="text-[10px] font-black text-emerald-400">₹{data.high?.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+                <span className="text-[8px] font-bold text-slate-500 uppercase">Low</span>
+                <span className="text-[10px] font-black text-rose-400">₹{data.low?.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+                <span className="text-[8px] font-bold text-slate-500 uppercase">Close</span>
+                <span className="text-[10px] font-black">₹{data.close?.toLocaleString()}</span>
+            </div>
+            {data.close && data.open && (
+                <div className="mt-2 pt-1 border-t border-slate-800 flex justify-between">
+                    <span className="text-[8px] font-bold text-slate-500 uppercase">Chg %</span>
+                    <span className={`text-[10px] font-black ${data.close >= data.open ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {(((data.close - data.open) / data.open) * 100).toFixed(2)}%
+                    </span>
+                </div>
+            )}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 const PerformanceCharts: React.FC<PerformanceChartsProps> = ({ 
   history, 
   drawdownData, 
   comparisonSeries
 }) => {
   const [period, setPeriod] = useState<Period>('1Y');
+  const [chartType, setChartType] = useState<'area' | 'candlestick'>('area');
   const [activeComparisons, setActiveComparisons] = useState<string[]>([]);
   const [mergedData, setMergedData] = useState<any[]>([]);
   
@@ -32,7 +127,6 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
     if (history.length > 0) {
       if (!customStart) setCustomStart(history[0].date);
       if (!customEnd) setCustomEnd(history[history.length - 1].date);
-      // Auto-select all comparisons for the second chart
       if (comparisonSeries && activeComparisons.length === 0) {
         setActiveComparisons(comparisonSeries.map(s => s.ticker));
       }
@@ -45,6 +139,9 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
     const merged = history.map((h, idx) => {
       const point: any = {
         date: h.date,
+        open: h.open,
+        high: h.high,
+        low: h.low,
         close: h.close,
       };
 
@@ -119,17 +216,13 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
     return data;
   }, [mergedData, period, showCustomRange, customStart, customEnd]);
 
-  // Normalize data for the Benchmarking Chart (relative growth)
   const normalizedData = useMemo(() => {
     if (filteredData.length === 0) return [];
     const basePoint = filteredData[0];
     
     return filteredData.map(point => {
       const result: any = { date: point.date };
-      // Normalize basket
       result.Basket = basePoint.close > 0 ? (point.close / basePoint.close) * 100 : 100;
-      
-      // Normalize components
       activeComparisons.forEach(ticker => {
         if (point[ticker] !== undefined && basePoint[ticker] !== undefined && basePoint[ticker] > 0) {
           result[ticker] = (point[ticker] / basePoint[ticker]) * 100;
@@ -141,8 +234,6 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
     });
   }, [filteredData, activeComparisons]);
 
-  const formatCurrency = (val: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val);
-  const formatPct = (val: number) => `${(val * 100).toFixed(1)}%`;
   const formatDate = (str: string) => {
     const d = new Date(str);
     return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear().toString().slice(2)}`;
@@ -159,7 +250,6 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* 1. KEY KPI OVERVIEW */}
       {basketMetrics && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
           {[
@@ -173,20 +263,38 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
                 <span className="text-[7px] font-black uppercase tracking-widest text-slate-400">{card.label}</span>
                 <card.icon size={10} className={card.text} />
               </div>
-              <p className={`text-base font-black leading-tight ${card.text}`}>{formatPct(card.val)}</p>
+              <p className={`text-base font-black leading-tight ${card.text}`}>{((card.val || 0) * 100).toFixed(1)}%</p>
             </div>
           ))}
         </div>
       )}
 
-      {/* 2. MASTER VALUATION CHART */}
       <div className="bg-white p-5 rounded-[32px] border border-slate-200 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-indigo-600 rounded-lg text-white">
-                <Activity size={12} />
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-indigo-600 rounded-lg text-white">
+                  <Activity size={12} />
+              </div>
+              <h3 className="text-slate-900 font-black text-[10px] uppercase tracking-widest">Instrument Valuation</h3>
             </div>
-            <h3 className="text-slate-900 font-black text-[10px] uppercase tracking-widest">Instrument Master Valuation</h3>
+            
+            <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                <button 
+                  onClick={() => setChartType('area')}
+                  className={`p-1.5 rounded-md transition-all ${chartType === 'area' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                  title="Area Chart"
+                >
+                  <Layout size={12} />
+                </button>
+                <button 
+                  onClick={() => setChartType('candlestick')}
+                  className={`p-1.5 rounded-md transition-all ${chartType === 'candlestick' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                  title="Candlestick Chart"
+                >
+                  <CandlestickChart size={12} />
+                </button>
+            </div>
           </div>
           
           <div className="flex items-center gap-0.5 bg-slate-50 p-0.5 rounded-lg border border-slate-200">
@@ -211,37 +319,51 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
           </div>
         </div>
 
-        <div className="h-[250px] w-full relative">
+        <div className="h-[280px] w-full relative">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={filteredData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorMain" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1}/>
-                  <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-              <XAxis dataKey="date" tickFormatter={formatDate} stroke="#cbd5e1" tick={{fontSize: 7, fontWeight: 700}} minTickGap={40} axisLine={false} tickLine={false} />
-              <YAxis stroke="#cbd5e1" tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} tick={{fontSize: 7, fontWeight: 700}} domain={['auto', 'auto']} width={50} axisLine={false} tickLine={false} />
-              <Tooltip 
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', fontSize: '9px', fontWeight: 900 }} 
-                formatter={(value: number) => [formatCurrency(value), 'Bucket Value']} 
-                labelFormatter={(label) => new Date(label).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} 
-              />
-              <Area type="monotone" dataKey="close" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorMain)" animationDuration={1000} />
-            </AreaChart>
+            {chartType === 'area' ? (
+              <AreaChart data={filteredData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorMain" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="date" tickFormatter={formatDate} stroke="#cbd5e1" tick={{fontSize: 7, fontWeight: 700}} minTickGap={40} axisLine={false} tickLine={false} />
+                <YAxis stroke="#cbd5e1" tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} tick={{fontSize: 7, fontWeight: 700}} domain={['auto', 'auto']} width={50} axisLine={false} tickLine={false} />
+                <Tooltip content={<CustomTooltip />} />
+                <Area type="monotone" dataKey="close" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorMain)" animationDuration={1000} name="Basket Value" />
+              </AreaChart>
+            ) : (
+              <ComposedChart data={filteredData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="date" tickFormatter={formatDate} stroke="#cbd5e1" tick={{fontSize: 7, fontWeight: 700}} minTickGap={40} axisLine={false} tickLine={false} />
+                <YAxis stroke="#cbd5e1" tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} tick={{fontSize: 7, fontWeight: 700}} domain={['auto', 'auto']} width={50} axisLine={false} tickLine={false} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar 
+                  dataKey="close" 
+                  name="Basket Value"
+                  isAnimationActive={true}
+                  shape={<Candlestick />}
+                >
+                  {filteredData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.close >= entry.open ? '#10b981' : '#ef4444'} />
+                  ))}
+                </Bar>
+              </ComposedChart>
+            )}
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* 3. RELATIVE BENCHMARKING CHART */}
       <div className="bg-white p-5 rounded-[32px] border border-slate-200 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div className="flex items-center gap-2">
             <div className="p-1.5 bg-emerald-600 rounded-lg text-white">
                 <Target size={12} />
             </div>
-            <h3 className="text-slate-900 font-black text-[10px] uppercase tracking-widest">Relative Component Benchmarking</h3>
+            <h3 className="text-slate-900 font-black text-[10px] uppercase tracking-widest">Component Benchmarking</h3>
           </div>
           <span className="text-[7px] text-slate-400 font-black uppercase tracking-widest bg-slate-50 px-2 py-1 rounded-md border border-slate-100">Base = 100</span>
         </div>
@@ -259,7 +381,6 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
               />
               <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{fontSize: '8px', fontWeight: 900, textTransform: 'uppercase'}} />
               
-              {/* Individual Stocks */}
               {activeComparisons.map((ticker, idx) => (
                 <Line 
                   key={ticker} 
@@ -273,7 +394,6 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
                 />
               ))}
               
-              {/* Bold Basket Line - Should be the "average" / central line */}
               <Line 
                 type="monotone" 
                 dataKey="Basket" 
@@ -291,7 +411,7 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
           <div className="flex items-center justify-between mb-2">
             <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
               <Filter size={10}/>
-              Benchmark Visibility
+              Visibility
             </span>
             <button onClick={() => { if (activeComparisons.length === (comparisonSeries?.length || 0)) setActiveComparisons([]); else setActiveComparisons(comparisonSeries?.map(s => s.ticker) || []); }} className="text-[7px] font-black text-indigo-600 uppercase hover:underline">
               {activeComparisons.length === (comparisonSeries?.length || 0) ? 'Hide All' : 'Show All'}

@@ -46,6 +46,15 @@ export interface Basket {
   rebalanceInterval: 'none' | 'monthly' | 'quarterly' | 'yearly';
   initialInvestment: number;
   createdAt: number;
+  // Summary metrics for dashboard
+  cagr?: number;
+  volatility?: number;
+  maxDrawdown?: number;
+  growthScore?: number;
+  // Performance tracking
+  inceptionValue?: number; // Portfolio value on the day it was created/saved
+  todayReturn?: number;    // % change from previous trading day
+  inceptionReturn?: number; // % change since created
 }
 
 export interface ComparisonData {
