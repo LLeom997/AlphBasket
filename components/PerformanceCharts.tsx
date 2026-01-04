@@ -6,9 +6,7 @@ import {
 } from 'recharts';
 import { OHLC, Period, ComparisonData } from '../types';
 import { 
-  Calendar, Loader2, Filter, TrendingUp, Award, Zap, 
-  History, BarChart3, LineChart as LineIcon, Activity, Target,
-  CandlestickChart, Layout
+  Activity, Target, BarChart3, CandlestickChart, Layout
 } from 'lucide-react';
 
 interface PerformanceChartsProps {
@@ -20,43 +18,78 @@ interface PerformanceChartsProps {
 
 const COLORS = ['#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#8b5cf6', '#ec4899', '#f97316'];
 
+/**
+ * Custom Candlestick shape.
+ * Recharts Bar passes (x, y, width, height) where y and height correspond to the value in dataKey.
+ * To render a proper candle, we need the actual data values from the payload.
+ */
 const Candlestick = (props: any) => {
-  const { x, y, width, height, payload } = props;
+  const { x, y, width, height, payload, low, high, open, close } = props;
   if (!payload) return null;
   
-  const { open, close, high, low } = payload;
-  const isUp = close >= open;
+  const isUp = payload.close >= payload.open;
   const color = isUp ? '#10b981' : '#ef4444';
 
-  // Y-axis in Recharts is inverted (0 at top).
-  // We need to figure out the scaling within this bar's context.
-  // Recharts Bar component 'y' and 'height' are for the range between 'dataKey' and zero.
-  // For custom shapes on candles, we use a simple proportional calculation.
-  const minVal = Math.min(open, close);
-  const maxVal = Math.max(open, close);
-  const bodyHeight = Math.max(2, height);
+  // We need to calculate pixel positions for high and low.
+  // The 'y' and 'height' provided by Recharts for the bar are based on the 'close' value (since dataKey="close").
+  // This is not ideal for candles. We need the Y-scale. 
+  // Fortunately, Recharts passes the scale function in the props (sometimes) or we can derive it.
+  // A more robust way in ComposedChart is to treat 'y' as the 'close' position and calculate based on height/value ratio.
+  
+  const bodyUpper = Math.max(payload.open, payload.close);
+  const bodyLower = Math.min(payload.open, payload.close);
+  
+  // Ratio of pixels per value unit
+  // props.y is the pixel coordinate of props.value (which is close)
+  // We can't easily get the absolute scale here, but we can use the 'y' from the bar
+  // if we set the Bar's dataKey to something sensible.
+  
+  // Re-calculating based on the coordinate system provided to the Bar
+  // In Recharts, Bar's y is the top of the bar. 
+  // We'll use a simpler approach: the Bar itself will be the body, 
+  // but we need to know where the top and bottom of the body are in pixels.
+  
+  // If we assume 'y' is the pixel position of the 'close' price:
+  // This is only true if we have one Bar.
+  // Let's use the provided 'y' and 'height' from the Bar component which Recharts calculates.
+  
+  // For a proper candle, we'll use the Bar to represent the body [open, close].
+  // props.y is the top of the bar, props.height is the height.
+  const bodyTop = y;
+  const bodyBottom = y + height;
+  const centerX = x + width / 2;
 
-  // Proportional wick logic (assuming 'y' and 'height' represent the close vs baseline)
-  // To be perfectly accurate we'd need internal scales, but SVG relative drawing is usually enough.
-  const ratio = height / Math.max(0.1, Math.abs(open - close));
-  const wickTop = y - (high - maxVal) * ratio;
-  const wickBottom = y + height + (minVal - low) * ratio;
+  // Estimate wick positions based on the body height/value ratio
+  const valueRange = Math.abs(payload.open - payload.close) || 0.1;
+  const pixelRange = height || 1;
+  const ratio = pixelRange / valueRange;
+
+  const wickTop = bodyTop - (payload.high - bodyUpper) * ratio;
+  const wickBottom = bodyBottom + (bodyLower - payload.low) * ratio;
 
   return (
     <g>
       <line
-        x1={x + width / 2}
+        x1={centerX}
         y1={wickTop}
-        x2={x + width / 2}
+        x2={centerX}
+        y2={bodyTop}
+        stroke={color}
+        strokeWidth={1.5}
+      />
+      <line
+        x1={centerX}
+        y1={bodyBottom}
+        x2={centerX}
         y2={wickBottom}
         stroke={color}
-        strokeWidth={1}
+        strokeWidth={1.5}
       />
       <rect
         x={x}
         y={y}
         width={width}
-        height={bodyHeight}
+        height={Math.max(1, height)}
         fill={color}
         stroke={color}
       />
@@ -67,9 +100,10 @@ const Candlestick = (props: any) => {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
+    const isBasket = payload[0].name === 'close';
     
     return (
-      <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-2xl text-white min-w-[180px]">
+      <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-2xl text-white min-w-[180px]">
         <div className="flex justify-between items-center mb-2 pb-2 border-b border-slate-800">
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
                 {new Date(label).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -80,28 +114,20 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         <div className="space-y-1.5">
             <div className="flex justify-between gap-4">
                 <span className="text-[8px] font-bold text-slate-500 uppercase">Open</span>
-                <span className="text-[10px] font-black">₹{data.open?.toLocaleString()}</span>
+                <span className="text-[10px] font-black">₹{data.open?.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
             </div>
             <div className="flex justify-between gap-4">
                 <span className="text-[8px] font-bold text-slate-500 uppercase">High</span>
-                <span className="text-[10px] font-black text-emerald-400">₹{data.high?.toLocaleString()}</span>
+                <span className="text-[10px] font-black text-emerald-400">₹{data.high?.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
             </div>
             <div className="flex justify-between gap-4">
                 <span className="text-[8px] font-bold text-slate-500 uppercase">Low</span>
-                <span className="text-[10px] font-black text-rose-400">₹{data.low?.toLocaleString()}</span>
+                <span className="text-[10px] font-black text-rose-400">₹{data.low?.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
             </div>
             <div className="flex justify-between gap-4">
                 <span className="text-[8px] font-bold text-slate-500 uppercase">Close</span>
-                <span className="text-[10px] font-black">₹{data.close?.toLocaleString()}</span>
+                <span className="text-[10px] font-black">₹{data.close?.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
             </div>
-            {data.close && data.open && (
-                <div className="mt-2 pt-1 border-t border-slate-800 flex justify-between">
-                    <span className="text-[8px] font-bold text-slate-500 uppercase">Chg %</span>
-                    <span className={`text-[10px] font-black ${data.close >= data.open ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {(((data.close - data.open) / data.open) * 100).toFixed(2)}%
-                    </span>
-                </div>
-            )}
         </div>
       </div>
     );
@@ -111,44 +137,42 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 const PerformanceCharts: React.FC<PerformanceChartsProps> = ({ 
   history, 
-  drawdownData, 
   comparisonSeries
 }) => {
   const [period, setPeriod] = useState<Period>('1Y');
   const [chartType, setChartType] = useState<'area' | 'candlestick'>('area');
   const [activeComparisons, setActiveComparisons] = useState<string[]>([]);
   const [mergedData, setMergedData] = useState<any[]>([]);
-  
-  const [showCustomRange, setShowCustomRange] = useState(false);
-  const [customStart, setCustomStart] = useState('');
-  const [customEnd, setCustomEnd] = useState('');
-
-  useEffect(() => {
-    if (history.length > 0) {
-      if (!customStart) setCustomStart(history[0].date);
-      if (!customEnd) setCustomEnd(history[history.length - 1].date);
-      if (comparisonSeries && activeComparisons.length === 0) {
-        setActiveComparisons(comparisonSeries.map(s => s.ticker));
-      }
-    }
-  }, [history, comparisonSeries]);
 
   useEffect(() => {
     if (!history || history.length === 0) return;
 
-    const merged = history.map((h, idx) => {
+    // Build comparison series lookup
+    const tickerDataMap = new Map<string, Map<string, number>>();
+    if (comparisonSeries) {
+      comparisonSeries.forEach(series => {
+        const dateMap = new Map<string, number>();
+        series.data.forEach(d => dateMap.set(d.date, d.value));
+        tickerDataMap.set(series.ticker, dateMap);
+      });
+    }
+
+    const merged = history.map((h) => {
       const point: any = {
         date: h.date,
         open: h.open,
         high: h.high,
         low: h.low,
         close: h.close,
+        // For Recharts Bar range [open, close]
+        range: [h.open, h.close]
       };
 
       if (comparisonSeries) {
         comparisonSeries.forEach(s => {
-           if (s.data[idx]) {
-             point[s.ticker] = s.data[idx].value;
+           const val = tickerDataMap.get(s.ticker)?.get(h.date);
+           if (val !== undefined) {
+             point[s.ticker] = val;
            }
         });
       }
@@ -156,6 +180,11 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
     });
 
     setMergedData(merged);
+    
+    // Default active comparisons
+    if (comparisonSeries && activeComparisons.length === 0) {
+      setActiveComparisons(comparisonSeries.map(s => s.ticker));
+    }
   }, [history, comparisonSeries]);
 
   const toggleComparison = (ticker: string) => {
@@ -164,68 +193,38 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
     );
   };
 
-  const calculateCAGRForWindow = (data: any[]) => {
-    if (data.length < 2) return 0;
-    const first = data[0];
-    const last = data[data.length - 1];
-    const startVal = first.close;
-    const endVal = last.close;
-    const years = (new Date(last.date).getTime() - new Date(first.date).getTime()) / (1000 * 3600 * 24 * 365.25);
-    return years > 0.1 && startVal > 0 
-      ? Math.pow(endVal / startVal, 1 / years) - 1 
-      : (endVal - startVal) / (startVal || 1);
-  };
-
-  const basketMetrics = useMemo(() => {
-    if (mergedData.length < 2) return null;
-    const getWindow = (years: number) => {
-      const end = new Date(mergedData[mergedData.length - 1].date);
-      const start = new Date(end);
-      start.setFullYear(end.getFullYear() - years);
-      return mergedData.filter(d => new Date(d.date) >= start);
-    };
-    return {
-      oneYear: calculateCAGRForWindow(getWindow(1)),
-      threeYear: calculateCAGRForWindow(getWindow(3)),
-      fiveYear: calculateCAGRForWindow(getWindow(5)),
-      allTime: calculateCAGRForWindow(mergedData)
-    };
-  }, [mergedData]);
-
   const filteredData = useMemo(() => {
     if (mergedData.length === 0) return [];
-    let data = mergedData;
+    
+    const endDateObj = new Date(mergedData[mergedData.length - 1].date);
+    const startDateObj = new Date(endDateObj);
+    
+    if (period === '1Y') startDateObj.setFullYear(endDateObj.getFullYear() - 1);
+    else if (period === '3Y') startDateObj.setFullYear(endDateObj.getFullYear() - 3);
+    else if (period === '5Y') startDateObj.setFullYear(endDateObj.getFullYear() - 5);
+    
+    if (period === 'ALL') return mergedData;
+    
+    return mergedData.filter(d => new Date(d.date) >= startDateObj);
+  }, [mergedData, period]);
 
-    if (showCustomRange && customStart && customEnd) {
-      const start = new Date(customStart).getTime();
-      const end = new Date(customEnd).getTime();
-      data = mergedData.filter(d => {
-        const t = new Date(d.date).getTime();
-        return t >= start && t <= end;
-      });
-    } else {
-      const endDateObj = new Date(mergedData[mergedData.length - 1].date);
-      const startDateObj = new Date(endDateObj);
-      if (period === '1Y') startDateObj.setFullYear(endDateObj.getFullYear() - 1);
-      else if (period === '3Y') startDateObj.setFullYear(endDateObj.getFullYear() - 3);
-      else if (period === '5Y') startDateObj.setFullYear(endDateObj.getFullYear() - 5);
-      if (period !== 'ALL') {
-        data = mergedData.filter(d => new Date(d.date) >= startDateObj);
-      }
-    }
-    return data;
-  }, [mergedData, period, showCustomRange, customStart, customEnd]);
-
+  // Normalized Benchmarking logic: Base 100 at the START of the visible period
   const normalizedData = useMemo(() => {
     if (filteredData.length === 0) return [];
     const basePoint = filteredData[0];
     
     return filteredData.map(point => {
       const result: any = { date: point.date };
+      
+      // Basket Normalization
       result.Basket = basePoint.close > 0 ? (point.close / basePoint.close) * 100 : 100;
+      
+      // Comparison Assets Normalization
       activeComparisons.forEach(ticker => {
-        if (point[ticker] !== undefined && basePoint[ticker] !== undefined && basePoint[ticker] > 0) {
-          result[ticker] = (point[ticker] / basePoint[ticker]) * 100;
+        const baseVal = basePoint[ticker];
+        const currentVal = point[ticker];
+        if (baseVal !== undefined && currentVal !== undefined && baseVal > 0) {
+          result[ticker] = (currentVal / baseVal) * 100;
         } else {
           result[ticker] = 100;
         }
@@ -236,150 +235,103 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
 
   const formatDate = (str: string) => {
     const d = new Date(str);
-    return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear().toString().slice(2)}`;
+    return `${d.getDate()}/${d.getMonth()+1}`;
   };
 
-  if (!history || history.length === 0) {
-    return (
-      <div className="bg-white p-12 rounded-[24px] border border-slate-200 text-center flex flex-col items-center justify-center space-y-4 h-[350px]">
-        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-        <p className="font-black text-slate-800 text-[10px] uppercase tracking-[0.2em]">Computing Performance DNA</p>
-      </div>
-    );
-  }
+  if (!history || history.length === 0) return null;
 
   return (
-    <div className="space-y-4">
-      {basketMetrics && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-          {[
-            { label: '1Y CAGR', val: basketMetrics.oneYear, icon: Zap, bg: 'bg-indigo-50 border-indigo-100', text: 'text-indigo-700' },
-            { label: '3Y CAGR', val: basketMetrics.threeYear, icon: TrendingUp, bg: 'bg-emerald-50 border-emerald-100', text: 'text-emerald-700' },
-            { label: '5Y CAGR', val: basketMetrics.fiveYear, icon: Award, bg: 'bg-amber-50 border-amber-100', text: 'text-amber-700' },
-            { label: 'ALL-TIME', val: basketMetrics.allTime, icon: History, bg: 'bg-slate-50 border-slate-200', text: 'text-slate-700' }
-          ].map((card, i) => (
-            <div key={i} className={`${card.bg} border p-3 rounded-[16px] shadow-sm transition-transform hover:scale-[1.02]`}>
-              <div className="flex justify-between items-center mb-0.5">
-                <span className="text-[7px] font-black uppercase tracking-widest text-slate-400">{card.label}</span>
-                <card.icon size={10} className={card.text} />
-              </div>
-              <p className={`text-base font-black leading-tight ${card.text}`}>{((card.val || 0) * 100).toFixed(1)}%</p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="bg-white p-5 rounded-[32px] border border-slate-200 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+    <div className="space-y-4 animate-in fade-in duration-500">
+      {/* Valuation Chart */}
+      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 bg-indigo-600 rounded-lg text-white">
-                  <Activity size={12} />
-              </div>
-              <h3 className="text-slate-900 font-black text-[10px] uppercase tracking-widest">Instrument Valuation</h3>
-            </div>
+            <h3 className="text-slate-900 font-bold text-[10px] uppercase tracking-wider flex items-center gap-2">
+                <BarChart3 size={16} className="text-indigo-600"/>
+                Strategy Valuation
+            </h3>
             
             <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
                 <button 
                   onClick={() => setChartType('area')}
-                  className={`p-1.5 rounded-md transition-all ${chartType === 'area' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                  title="Area Chart"
+                  className={`p-1.5 rounded-md transition-all ${chartType === 'area' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
                 >
-                  <Layout size={12} />
+                  <Layout size={14} />
                 </button>
                 <button 
                   onClick={() => setChartType('candlestick')}
-                  className={`p-1.5 rounded-md transition-all ${chartType === 'candlestick' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                  title="Candlestick Chart"
+                  className={`p-1.5 rounded-md transition-all ${chartType === 'candlestick' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
                 >
-                  <CandlestickChart size={12} />
+                  <CandlestickChart size={14} />
                 </button>
             </div>
           </div>
           
-          <div className="flex items-center gap-0.5 bg-slate-50 p-0.5 rounded-lg border border-slate-200">
+          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
             {(['1Y', '3Y', '5Y', 'ALL'] as Period[]).map((p) => (
               <button
                 key={p}
-                onClick={() => {setPeriod(p); setShowCustomRange(false);}}
-                className={`px-2 py-0.5 text-[7px] rounded-md font-black transition-all ${
-                  period === p && !showCustomRange ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400'
+                onClick={() => setPeriod(p)}
+                className={`px-3 py-1 text-[9px] rounded-md font-bold transition-all ${
+                  period === p ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'
                 }`}
               >
                 {p}
               </button>
             ))}
-            <button 
-              onClick={() => setShowCustomRange(!showCustomRange)}
-              className={`p-1 px-1.5 rounded-md font-black flex items-center gap-1 ${showCustomRange ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}
-            >
-              <Calendar size={10} />
-              <span className="text-[7px] uppercase font-black">Custom</span>
-            </button>
           </div>
         </div>
 
-        <div className="h-[280px] w-full relative">
+        <div className="h-[320px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             {chartType === 'area' ? (
-              <AreaChart data={filteredData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+              <AreaChart data={filteredData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorMain" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1}/>
+                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.15}/>
                     <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                <XAxis dataKey="date" tickFormatter={formatDate} stroke="#cbd5e1" tick={{fontSize: 7, fontWeight: 700}} minTickGap={40} axisLine={false} tickLine={false} />
-                <YAxis stroke="#cbd5e1" tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} tick={{fontSize: 7, fontWeight: 700}} domain={['auto', 'auto']} width={50} axisLine={false} tickLine={false} />
+                <XAxis dataKey="date" tickFormatter={formatDate} stroke="#94a3b8" tick={{fontSize: 9, fontWeight: 700}} minTickGap={50} axisLine={false} tickLine={false} />
+                <YAxis stroke="#94a3b8" tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} tick={{fontSize: 9, fontWeight: 700}} domain={['auto', 'auto']} width={65} axisLine={false} tickLine={false} />
                 <Tooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="close" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorMain)" animationDuration={1000} name="Basket Value" />
+                <Area type="monotone" dataKey="close" stroke="#4f46e5" strokeWidth={2.5} fillOpacity={1} fill="url(#colorMain)" animationDuration={1000} />
               </AreaChart>
             ) : (
-              <ComposedChart data={filteredData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+              <ComposedChart data={filteredData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                <XAxis dataKey="date" tickFormatter={formatDate} stroke="#cbd5e1" tick={{fontSize: 7, fontWeight: 700}} minTickGap={40} axisLine={false} tickLine={false} />
-                <YAxis stroke="#cbd5e1" tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} tick={{fontSize: 7, fontWeight: 700}} domain={['auto', 'auto']} width={50} axisLine={false} tickLine={false} />
+                <XAxis dataKey="date" tickFormatter={formatDate} stroke="#94a3b8" tick={{fontSize: 9, fontWeight: 700}} minTickGap={50} axisLine={false} tickLine={false} />
+                <YAxis stroke="#94a3b8" tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} tick={{fontSize: 9, fontWeight: 700}} domain={['auto', 'auto']} width={65} axisLine={false} tickLine={false} />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar 
-                  dataKey="close" 
-                  name="Basket Value"
-                  isAnimationActive={true}
-                  shape={<Candlestick />}
-                >
-                  {filteredData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.close >= entry.open ? '#10b981' : '#ef4444'} />
-                  ))}
-                </Bar>
+                <Bar dataKey="range" shape={<Candlestick />} animationDuration={500} />
               </ComposedChart>
             )}
           </ResponsiveContainer>
         </div>
       </div>
 
-      <div className="bg-white p-5 rounded-[32px] border border-slate-200 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-emerald-600 rounded-lg text-white">
-                <Target size={12} />
-            </div>
-            <h3 className="text-slate-900 font-black text-[10px] uppercase tracking-widest">Component Benchmarking</h3>
-          </div>
-          <span className="text-[7px] text-slate-400 font-black uppercase tracking-widest bg-slate-50 px-2 py-1 rounded-md border border-slate-100">Base = 100</span>
+      {/* Normalized Benchmarking Chart */}
+      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <div className="flex justify-between items-center mb-6">
+            <h3 className="text-slate-900 font-bold text-[10px] uppercase tracking-wider flex items-center gap-2">
+                <Target size={16} className="text-emerald-600"/>
+                Normalized Benchmarking
+            </h3>
+            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest bg-slate-50 px-2 py-1 rounded-md border border-slate-100">Performance (Base 100)</span>
         </div>
 
-        <div className="h-[300px] w-full relative">
+        <div className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={normalizedData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+            <LineChart data={normalizedData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-              <XAxis dataKey="date" tickFormatter={formatDate} stroke="#cbd5e1" tick={{fontSize: 7, fontWeight: 700}} minTickGap={40} axisLine={false} tickLine={false} />
-              <YAxis stroke="#cbd5e1" tickFormatter={(v) => `${v.toFixed(0)}`} tick={{fontSize: 7, fontWeight: 700}} domain={['auto', 'auto']} width={50} axisLine={false} tickLine={false} />
+              <XAxis dataKey="date" tickFormatter={formatDate} stroke="#94a3b8" tick={{fontSize: 9, fontWeight: 700}} minTickGap={50} axisLine={false} tickLine={false} />
+              <YAxis stroke="#94a3b8" tickFormatter={(v) => `${v.toFixed(0)}`} tick={{fontSize: 9, fontWeight: 700}} domain={['auto', 'auto']} width={65} axisLine={false} tickLine={false} />
               <Tooltip 
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', fontSize: '9px', fontWeight: 900 }} 
-                formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]} 
-                labelFormatter={(label) => new Date(label).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} 
+                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontSize: '10px', fontWeight: 800 }} 
+                labelFormatter={(label) => new Date(label).toLocaleDateString()} 
               />
-              <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{fontSize: '8px', fontWeight: 900, textTransform: 'uppercase'}} />
+              <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{fontSize: '9px', fontWeight: 700, textTransform: 'uppercase'}} />
               
               {activeComparisons.map((ticker, idx) => (
                 <Line 
@@ -398,35 +350,26 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
                 type="monotone" 
                 dataKey="Basket" 
                 stroke="#4f46e5" 
-                strokeWidth={4} 
+                strokeWidth={3} 
                 dot={false} 
                 animationDuration={1000} 
-                strokeDasharray="5 5"
+                strokeDasharray="4 4"
               />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="pt-3 border-t border-slate-50">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
-              <Filter size={10}/>
-              Visibility
-            </span>
-            <button onClick={() => { if (activeComparisons.length === (comparisonSeries?.length || 0)) setActiveComparisons([]); else setActiveComparisons(comparisonSeries?.map(s => s.ticker) || []); }} className="text-[7px] font-black text-indigo-600 uppercase hover:underline">
-              {activeComparisons.length === (comparisonSeries?.length || 0) ? 'Hide All' : 'Show All'}
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-1">
+        <div className="pt-4 mt-2 border-t border-slate-50">
+          <div className="flex flex-wrap gap-2">
             {comparisonSeries?.map((s, idx) => (
               <button
                 key={s.ticker}
                 onClick={() => toggleComparison(s.ticker)}
-                className={`px-2 py-1 rounded-md text-[7px] font-black uppercase tracking-widest border transition-all flex items-center gap-1 ${
+                className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider border transition-all flex items-center gap-2 ${
                   activeComparisons.includes(s.ticker) ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-400 border-slate-100 hover:border-slate-300'
                 }`}
               >
-                <div className="w-1 h-1 rounded-full" style={{backgroundColor: activeComparisons.includes(s.ticker) ? COLORS[idx % COLORS.length] : '#cbd5e1'}}></div>
+                <div className="w-1.5 h-1.5 rounded-full" style={{backgroundColor: activeComparisons.includes(s.ticker) ? COLORS[idx % COLORS.length] : '#cbd5e1'}}></div>
                 {s.ticker}
               </button>
             ))}

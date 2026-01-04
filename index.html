@@ -3,14 +3,19 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AlphaBasket - Synthetic Instrument Designer</title>
+    <title>AlphaBasket - Professional Synthetic Workbench</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
             fontFamily: {
-              sans: ['Comfortaa', 'sans-serif']
+              sans: ['Inter', 'system-ui', 'sans-serif']
+            },
+            borderRadius: {
+              'xl': '8px',
+              '2xl': '12px',
+              '3xl': '16px'
             }
           }
         }
@@ -18,27 +23,34 @@
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
       body {
         background-color: #f8fafc; /* Slate 50 */
         color: #0f172a; /* Slate 900 */
-        font-family: 'Comfortaa', sans-serif;
+        font-family: 'Inter', sans-serif;
+        letter-spacing: -0.011em;
       }
-      /* Custom scrollbar for light theme */
+      /* Custom scrollbar */
       ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+        width: 5px;
+        height: 5px;
       }
       ::-webkit-scrollbar-track {
-        background: #f1f5f9; 
+        background: transparent; 
       }
       ::-webkit-scrollbar-thumb {
-        background: #cbd5e1; 
-        border-radius: 4px;
+        background: #e2e8f0; 
+        border-radius: 10px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8; 
+        background: #cbd5e1; 
+      }
+      .mesh-bg {
+        background-color: #f8fafc;
+        background-image: 
+          radial-gradient(at 0% 0%, hsla(210, 40%, 96%, 1) 0, transparent 50%), 
+          radial-gradient(at 100% 100%, hsla(220, 30%, 95%, 1) 0, transparent 50%);
       }
     </style>
   <script type="importmap">
@@ -56,7 +68,7 @@
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-  <body>
+  <body class="mesh-bg">
     <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
