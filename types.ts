@@ -46,14 +46,20 @@ export interface Basket {
   rebalanceInterval: 'none' | 'monthly' | 'quarterly' | 'yearly';
   initialInvestment: number;
   createdAt: number;
+  updatedAt?: number;
   // Summary metrics for dashboard
   cagr?: number;
+  cagr1y?: number; // 1 year CAGR
+  cagr3y?: number; // 3 year CAGR
+  cagr5y?: number; // 5 year CAGR
   volatility?: number;
   maxDrawdown?: number;
+  sharpeRatio?: number;
   growthScore?: number;
+  irr?: number;
   // Performance tracking
   inceptionValue?: number; // Portfolio value on the day it was created/saved
-  todayReturn?: number;    // % change from previous trading day
+  todayReturn?: number;    // % change from previous trading day (daily change)
   inceptionReturn?: number; // % change since created
 }
 
@@ -95,6 +101,15 @@ export interface AssetForecast {
   bestCase: number;
 }
 
+export interface Trade {
+  entryDate: string;
+  exitDate: string | null;
+  entryPrice: number;
+  exitPrice: number | null;
+  returnPct: number | null;
+  reason: "target" | "stop_loss" | "hold" | "crossover" | "end_of_period";
+}
+
 export interface SimulationResult {
   basketId: string;
   history: OHLC[];
@@ -103,6 +118,10 @@ export interface SimulationResult {
   liveAllocation: PortfolioAllocation;
   metrics: {
     cagr: number;
+    cagr1y?: number;
+    cagr3y?: number;
+    cagr5y?: number;
+    irr?: number;
     maxDrawdown: number;
     sharpeRatio: number;
     sortinoRatio: number;
@@ -125,17 +144,17 @@ export interface SimulationResult {
 }
 
 export interface Snapshot {
-    id: string;
-    basketId: string;
-    snapshotDate: string;
-    label: string;
-    metrics: SimulationResult['metrics'];
-    forecast: SimulationResult['forecast'];
-    basketState: {
-        items: BasketItem[];
-        allocationMode: string;
-        initialInvestment: number;
-    };
+  id: string;
+  basketId: string;
+  snapshotDate: string;
+  label: string;
+  metrics: SimulationResult['metrics'];
+  forecast: SimulationResult['forecast'];
+  basketState: {
+    items: BasketItem[];
+    allocationMode: string;
+    initialInvestment: number;
+  };
 }
 
 export type Period = '1Y' | '3Y' | '5Y' | 'ALL';

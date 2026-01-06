@@ -1,15 +1,15 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Snapshot, SimulationResult, Basket } from '../types';
-import { fetchSnapshots, deleteSnapshot } from '../services/snapshotService';
-import { 
-    History, Trash2, Calendar, TrendingUp, TrendingDown, 
-    ArrowRight, Info, Target, Activity, Zap, CheckCircle2, 
+import { fetchSnapshots, deleteSnapshot } from '../services/database/snapshotService';
+import {
+    History, Trash2, Calendar, TrendingUp, TrendingDown,
+    ArrowRight, Info, Target, Activity, Zap, CheckCircle2,
     AlertTriangle, Sparkles, Clock, Layers, ChevronLeft, RefreshCw, FileEdit
 } from 'lucide-react';
-import { 
-    ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, 
-    Tooltip, ResponsiveContainer, Legend 
+import {
+    ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid,
+    Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 
 interface SnapshotHistoryProps {
@@ -44,8 +44,8 @@ const SnapshotHistory: React.FC<SnapshotHistoryProps> = ({ basketId, currentSimu
         }
     };
 
-    const selectedSnapshot = useMemo(() => 
-        snapshots.find(s => s.id === selectedSnapshotId), 
+    const selectedSnapshot = useMemo(() =>
+        snapshots.find(s => s.id === selectedSnapshotId),
         [snapshots, selectedSnapshotId]
     );
 
@@ -68,12 +68,12 @@ const SnapshotHistory: React.FC<SnapshotHistoryProps> = ({ basketId, currentSimu
                 p10: forecastPaths.p10[day],
                 actual: actualPoint ? actualPoint.close : null
             };
-        }).filter(d => d.day < 60 || d.actual !== null); 
+        }).filter(d => d.day < 60 || d.actual !== null);
     }, [selectedSnapshot, currentSimulation]);
 
     const driftStatus = useMemo(() => {
         if (!comparisonData.length) return null;
-        
+
         let latestActualIdx = -1;
         for (let i = comparisonData.length - 1; i >= 0; i--) {
             if (comparisonData[i].actual !== null) {
@@ -81,26 +81,26 @@ const SnapshotHistory: React.FC<SnapshotHistoryProps> = ({ basketId, currentSimu
                 break;
             }
         }
-        
+
         if (latestActualIdx < 0) return null;
 
         const latest = comparisonData[latestActualIdx];
         const deviation = (latest.actual! - latest.p50) / latest.p50;
-        
+
         let status = 'On Track';
-        let color = 'text-indigo-600';
-        let bg = 'bg-indigo-50';
+        let color = 'text-brand-teal';
+        let bg = 'bg-brand-teal/10';
         let icon = CheckCircle2;
 
         if (latest.actual! > latest.p90) {
             status = 'Overperforming';
-            color = 'text-emerald-600';
-            bg = 'bg-emerald-50';
+            color = 'text-brand-green';
+            bg = 'bg-brand-green/10';
             icon = Sparkles;
         } else if (latest.actual! < latest.p10) {
             status = 'Drift Warning';
-            color = 'text-rose-600';
-            bg = 'bg-rose-50';
+            color = 'text-brand-red';
+            bg = 'bg-brand-red/10';
             icon = AlertTriangle;
         }
 
@@ -110,12 +110,7 @@ const SnapshotHistory: React.FC<SnapshotHistoryProps> = ({ basketId, currentSimu
     const formatINR = (n: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
     const formatPct = (n: number) => (n * 100).toFixed(1) + '%';
 
-    if (loading) return (
-        <div className="h-[400px] flex flex-col items-center justify-center space-y-3">
-            <RefreshCw size={32} className="animate-spin text-indigo-500" />
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Syncing Historical Plans...</p>
-        </div>
-    );
+
 
     if (snapshots.length === 0) return (
         <div className="h-[400px] flex flex-col items-center justify-center text-center p-8 bg-white rounded-[32px] border border-slate-200 border-dashed">
@@ -126,7 +121,7 @@ const SnapshotHistory: React.FC<SnapshotHistoryProps> = ({ basketId, currentSimu
             <p className="text-[10px] text-slate-400 font-bold uppercase max-w-xs mx-auto leading-relaxed mb-6">
                 You haven't captured any strategy snapshots yet. Capturing a plan allows you to track drift from your original "T0" prediction.
             </p>
-            <button onClick={onExit} className="bg-indigo-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-xl shadow-indigo-100">
+            <button onClick={onExit} className="bg-brand-teal text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-xl shadow-brand-teal/20">
                 <ArrowRight size={14} /> Back to Live Backtest
             </button>
         </div>
@@ -140,7 +135,7 @@ const SnapshotHistory: React.FC<SnapshotHistoryProps> = ({ basketId, currentSimu
                     <History size={16} className="text-slate-400" />
                     <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Strategy Archive</h2>
                 </div>
-                <button onClick={onExit} className="text-[9px] font-black text-indigo-600 uppercase flex items-center gap-1.5 hover:underline">
+                <button onClick={onExit} className="text-[9px] font-black text-brand-teal uppercase flex items-center gap-1.5 hover:underline">
                     <ChevronLeft size={12} /> Return to Active Strategy
                 </button>
             </div>
@@ -152,15 +147,15 @@ const SnapshotHistory: React.FC<SnapshotHistoryProps> = ({ basketId, currentSimu
                         <button
                             key={s.id}
                             onClick={() => setSelectedSnapshotId(s.id)}
-                            className={`w-full p-4 rounded-2xl border transition-all text-left relative group ${selectedSnapshotId === s.id ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' : 'bg-white border-slate-200 hover:border-indigo-300 text-slate-700'}`}
+                            className={`w-full p-4 rounded-2xl border transition-all text-left relative group ${selectedSnapshotId === s.id ? 'bg-brand-teal border-brand-teal text-white shadow-lg' : 'bg-white border-slate-200 hover:border-brand-teal/30 text-slate-700'}`}
                         >
                             <div className="flex justify-between items-start mb-1">
-                                <span className={`text-[8px] font-black uppercase tracking-tight ${selectedSnapshotId === s.id ? 'text-indigo-200' : 'text-slate-400'}`}>
+                                <span className={`text-[8px] font-black uppercase tracking-tight ${selectedSnapshotId === s.id ? 'text-brand-teal/40' : 'text-slate-400'}`}>
                                     {new Date(s.snapshotDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
                                 </span>
-                                <button 
+                                <button
                                     onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }}
-                                    className={`p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity ${selectedSnapshotId === s.id ? 'hover:bg-indigo-500 text-indigo-200' : 'hover:bg-rose-50 text-slate-300 hover:text-rose-500'}`}
+                                    className={`p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity ${selectedSnapshotId === s.id ? 'hover:bg-brand-teal/20 text-white' : 'hover:bg-brand-red/10 text-slate-300 hover:text-brand-red'}`}
                                 >
                                     <Trash2 size={12} />
                                 </button>
@@ -180,7 +175,7 @@ const SnapshotHistory: React.FC<SnapshotHistoryProps> = ({ basketId, currentSimu
                             {/* Summary Card */}
                             <div className="bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-6">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-inner">
+                                    <div className="w-14 h-14 bg-brand-teal/10 rounded-2xl flex items-center justify-center text-brand-teal shadow-inner">
                                         <Clock size={28} />
                                     </div>
                                     <div>
@@ -199,7 +194,7 @@ const SnapshotHistory: React.FC<SnapshotHistoryProps> = ({ basketId, currentSimu
                                 </div>
 
                                 <div className="flex gap-2">
-                                    <button 
+                                    <button
                                         onClick={() => onRestore(selectedSnapshot)}
                                         className="bg-slate-900 text-white px-5 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-black transition-all shadow-xl shadow-slate-100"
                                     >
@@ -212,12 +207,12 @@ const SnapshotHistory: React.FC<SnapshotHistoryProps> = ({ basketId, currentSimu
                             <div className="bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm">
                                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                                     <div className="flex items-center gap-2">
-                                        <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg">
+                                        <div className="p-1.5 bg-brand-green/10 text-brand-green rounded-lg">
                                             <Activity size={14} />
                                         </div>
                                         <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900">Drift vs. Probability Cone</h4>
                                     </div>
-                                    
+
                                     {driftStatus && (
                                         <div className={`px-4 py-2 rounded-xl flex items-center gap-3 ${driftStatus.bg} border ${driftStatus.bg.replace('bg-', 'border-')}`}>
                                             <driftStatus.icon size={14} className={driftStatus.color} />
@@ -236,33 +231,33 @@ const SnapshotHistory: React.FC<SnapshotHistoryProps> = ({ basketId, currentSimu
                                         <ComposedChart data={comparisonData} margin={{ left: -25, right: 10, top: 10, bottom: 0 }}>
                                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f8fafc" />
                                             <XAxis dataKey="day" hide />
-                                            <YAxis tickFormatter={formatINR} stroke="#cbd5e1" tick={{fontSize: 8, fontWeight: 900}} axisLine={false} tickLine={false} width={70} domain={['auto', 'auto']} />
-                                            <Tooltip 
-                                                contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontSize: '10px', fontWeight: 900 }} 
-                                                labelFormatter={(day) => `Day T+${day}`} 
+                                            <YAxis tickFormatter={formatINR} stroke="#cbd5e1" tick={{ fontSize: 8, fontWeight: 900 }} axisLine={false} tickLine={false} width={70} domain={['auto', 'auto']} />
+                                            <Tooltip
+                                                contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontSize: '10px', fontWeight: 900 }}
+                                                labelFormatter={(day) => `Day T+${day}`}
                                                 formatter={(v: any) => formatINR(v)}
                                             />
-                                            
-                                            <Area dataKey="p90" stroke="transparent" fill="#4f46e5" fillOpacity={0.04} name="Upper Bound (P90)" />
+
+                                            <Area dataKey="p90" stroke="transparent" fill="#5acec9" fillOpacity={0.04} name="Upper Bound (P90)" />
                                             <Area dataKey="p10" stroke="transparent" fill="#ffffff" fillOpacity={1} name="Lower Bound (P10)" />
-                                            
-                                            <Line type="monotone" dataKey="p50" stroke="#4f46e5" strokeWidth={2} strokeDasharray="5 5" dot={false} name="T0 Projection" animationDuration={800} />
-                                            <Line type="monotone" dataKey="actual" stroke="#10b981" strokeWidth={4} dot={false} name="Actual Realization" animationDuration={1200} />
+
+                                            <Line type="monotone" dataKey="p50" stroke="#5acec9" strokeWidth={2} strokeDasharray="5 5" dot={false} name="T0 Projection" animationDuration={800} />
+                                            <Line type="monotone" dataKey="actual" stroke="#8dd67a" strokeWidth={4} dot={false} name="Actual Realization" animationDuration={1200} />
                                         </ComposedChart>
                                     </ResponsiveContainer>
                                 </div>
 
                                 <div className="flex justify-center gap-8 mt-4">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-4 h-1 bg-indigo-600 opacity-20 rounded-full"></div>
+                                        <div className="w-4 h-1 bg-brand-teal/20 rounded-full"></div>
                                         <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Confidence Area</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <div className="w-4 h-0.5 bg-indigo-600 border-t border-dashed border-indigo-600"></div>
+                                        <div className="w-4 h-0.5 bg-brand-teal border-t border-dashed border-brand-teal"></div>
                                         <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Planned Median</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <div className="w-4 h-1 bg-emerald-500 rounded-full"></div>
+                                        <div className="w-4 h-1 bg-brand-green rounded-full"></div>
                                         <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Market Reality</span>
                                     </div>
                                 </div>
@@ -272,7 +267,7 @@ const SnapshotHistory: React.FC<SnapshotHistoryProps> = ({ basketId, currentSimu
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="bg-slate-50 p-5 rounded-[24px] border border-slate-100">
                                     <h4 className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                        <Zap size={12} className="text-indigo-500" /> T0 Static Metrics
+                                        <Zap size={12} className="text-brand-teal" /> T0 Static Metrics
                                     </h4>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
@@ -286,11 +281,11 @@ const SnapshotHistory: React.FC<SnapshotHistoryProps> = ({ basketId, currentSimu
                                     </div>
                                 </div>
 
-                                <div className="bg-indigo-50/50 p-5 rounded-[24px] border border-indigo-100 flex items-start gap-4">
-                                    <Info size={18} className="text-indigo-400 shrink-0 mt-1" />
+                                <div className="bg-brand-teal/5 p-5 rounded-[24px] border border-brand-teal/10 flex items-start gap-4">
+                                    <Info size={18} className="text-brand-teal shrink-0 mt-1" />
                                     <div>
-                                        <h4 className="text-[8px] font-black text-indigo-700 uppercase tracking-widest mb-1">Archival Context</h4>
-                                        <p className="text-[9px] font-medium text-indigo-900 leading-relaxed">
+                                        <h4 className="text-[8px] font-black text-brand-teal uppercase tracking-widest mb-1">Archival Context</h4>
+                                        <p className="text-[9px] font-medium text-brand-teal leading-relaxed">
                                             This plan was archived using <span className="font-bold">₹{selectedSnapshot.basketState.initialInvestment.toLocaleString()}</span> initial capital. The "Drift Assessment" tells you how much the real market has deviated from your original Monte Carlo median since that date.
                                         </p>
                                     </div>
