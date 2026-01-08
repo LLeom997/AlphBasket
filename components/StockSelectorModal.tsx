@@ -153,14 +153,14 @@ const StockSelectorModal: React.FC<StockSelectorModalProps> = ({ isOpen, onClose
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[500] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-      <div className="bg-white border border-slate-200 rounded-[32px] w-full max-w-6xl h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-[500] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-300">
+      <div className="bg-white border-t sm:border border-slate-200 rounded-t-[20px] sm:rounded-[32px] w-full max-w-6xl h-[95vh] sm:h-[85vh] flex flex-col shadow-2xl overflow-hidden mt-auto sm:mt-0">
 
-        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
+        <div className="px-4 lg:px-6 py-3 lg:py-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
           <div>
-            <h2 className="text-lg font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">Asset Explorer <span className="text-[8px] px-2 py-0.5 bg-brand-teal/10 text-brand-teal rounded-full">{loadingMaster ? 'Syncing' : `${masterList.length} Symbols`}</span></h2>
+            <h2 className="text-sm lg:text-lg font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">Asset Explorer <span className="text-[7px] lg:text-[8px] px-2 py-0.5 bg-brand-teal/10 text-brand-teal rounded-full">{loadingMaster ? 'Syncing' : `${masterList.length} Symbols`}</span></h2>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-brand-red p-2 rounded-lg transition-all"><X size={20} /></button>
+          <button onClick={onClose} className="text-slate-400 hover:text-brand-red p-2 rounded-lg transition-all"><X size={18} className="lg:size-20" /></button>
         </div>
 
         <div className="px-6 py-3 bg-slate-50 border-b border-slate-200 shrink-0 flex flex-col sm:flex-row gap-2">

@@ -1,87 +1,118 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AlphaBasket - Professional Synthetic Workbench</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              brand: {
-                red: '#f3533b',
-                orange: '#fa9f42',
-                green: '#8dd67a',
-                teal: '#5acec9',
-                primary: '#5acec9', // Using Teal as primary
-                danger: '#f3533b',
-                warning: '#fa9f42',
-                success: '#8dd67a'
-              }
-            },
-            fontFamily: {
-              sans: ['Inter', 'system-ui', 'sans-serif']
-            },
-            borderRadius: {
-              'xl': '8px',
-              '2xl': '12px',
-              '3xl': '16px'
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AlphaBasket - Professional Synthetic Workbench</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              red: 'rgb(var(--brand-red) / <alpha-value>)',
+              orange: 'rgb(var(--brand-orange) / <alpha-value>)',
+              green: 'rgb(var(--brand-green) / <alpha-value>)',
+              teal: 'rgb(var(--brand-teal) / <alpha-value>)',
+              primary: 'rgb(var(--brand-teal) / <alpha-value>)',
+              danger: 'rgb(var(--brand-red) / <alpha-value>)',
+              warning: 'rgb(var(--brand-orange) / <alpha-value>)',
+              success: 'rgb(var(--brand-green) / <alpha-value>)'
             }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif']
+          },
+          borderRadius: {
+            'xl': '8px',
+            '2xl': '12px',
+            '3xl': '16px'
           }
         }
       }
-    </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-      body {
-        background-color: #f8fafc; /* Slate 50 */
-        color: #0f172a; /* Slate 900 */
-        font-family: 'Inter', sans-serif;
-        letter-spacing: -0.011em;
-      }
-      /* Custom scrollbar */
-      ::-webkit-scrollbar {
-        width: 5px;
-        height: 5px;
-      }
-      ::-webkit-scrollbar-track {
-        background: transparent; 
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #e2e8f0; 
-        border-radius: 10px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #cbd5e1; 
-      }
-      .mesh-bg {
-        background-color: #f8fafc;
-        background-image: 
-          radial-gradient(at 0% 0%, hsla(210, 40%, 96%, 1) 0, transparent 50%), 
-          radial-gradient(at 100% 100%, hsla(220, 30%, 95%, 1) 0, transparent 50%);
-      }
-    </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
-    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.86.0"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      /* Default Brand Colors (RGB) */
+      --brand-red: 243 83 59;
+      /* #f3533b */
+      --brand-orange: 250 159 66;
+      /* #fa9f42 */
+      --brand-green: 141 214 122;
+      /* #8dd67a */
+      --brand-teal: 90 206 201;
+      /* #5acec9 */
+      --bg-main: #f8fafc;
+      --text-main: #0f172a;
+    }
+
+    [data-theme='beach'] {
+      /* Beach Colors (RGB) */
+      --brand-red: 71 199 235;
+      /* #47c7eb - Light Blue */
+      --brand-orange: 249 174 51;
+      /* #f9ae33 - Sandy Orange */
+      --brand-green: 82 126 75;
+      /* #527e4b - Palm Green */
+      --brand-teal: 5 143 178;
+      /* #058fb2 - Deep Sea Teal */
+      --bg-main: #f0f7f4;
+      /* Derived from #c8d9cd */
+      --text-main: #0c1c23;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      letter-spacing: -0.011em;
+      transition: background-color 0.4s ease, color 0.4s ease;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #e2e8f0;
+      border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #cbd5e1;
+    }
+
+    .mesh-bg {
+      background-color: var(--bg-main);
+      background-image:
+        radial-gradient(at 0% 0%, hsla(210, 40%, 96%, 0.4) 0, transparent 50%),
+        radial-gradient(at 100% 100%, hsla(220, 30%, 95%, 0.4) 0, transparent 50%);
+    }
+
+    [data-theme='beach'] .mesh-bg {
+      background-image:
+        radial-gradient(at 0% 0%, hsla(180, 40%, 90%, 0.4) 0, transparent 50%),
+        radial-gradient(at 100% 100%, hsla(200, 30%, 85%, 0.4) 0, transparent 50%);
+    }
+  </style>
 </head>
-  <body class="mesh-bg">
-    <div id="root"></div>
+
+<body class="mesh-bg">
+  <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
+
 </html>

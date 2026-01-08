@@ -29,6 +29,15 @@ export default function App() {
     const [isLoading, setIsLoading] = useState(false);
     const [isAssetExplorerOpen, setIsAssetExplorerOpen] = useState(false);
     const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
+    const [theme, setTheme] = useState<"default" | "beach">(() => {
+        return (localStorage.getItem("app-theme") as any) || "default";
+    });
+
+    // Theme Sync
+    useEffect(() => {
+        document.documentElement.setAttribute("data-theme", theme);
+        localStorage.setItem("app-theme", theme);
+    }, [theme]);
 
     useEffect(() => {
         const restoreSession = async () => {
@@ -157,7 +166,7 @@ export default function App() {
     if (view === "auth") return <Auth />;
 
     return (
-        <div className="h-screen flex bg-slate-50 text-slate-900 font-sans overflow-hidden">
+        <div className={`h-screen flex bg-transparent font-sans overflow-hidden transition-colors duration-500`}>
 
 
             <StockSelectorModal
@@ -168,6 +177,14 @@ export default function App() {
                 alreadySelected={currentBasket?.items.map((i: any) => i.ticker) || []}
             />
 
+            {/* Mobile Sidebar Overlay */}
+            {sidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 lg:hidden"
+                    onClick={() => setSidebarOpen(false)}
+                />
+            )}
+
             <Sidebar
                 sidebarOpen={sidebarOpen}
                 sidebarCollapsed={sidebarCollapsed}
@@ -177,16 +194,18 @@ export default function App() {
                 onLogout={handleLogout}
                 view={view}
                 onViewChange={setView}
+                theme={theme}
+                onThemeChange={setTheme}
             />
 
             <main className="flex-1 flex flex-col min-w-0 h-full relative">
                 <header className="lg:hidden h-14 bg-white border-b border-slate-200 flex items-center px-4 justify-between sticky top-0 z-20">
-                    <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-slate-50"><Menu size={20} /></button>
-                    <span className="font-bold text-brand-teal text-sm tracking-tight">ALPHABASKET</span>
+                    <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-slate-50"><Menu size={20} className="text-slate-600" /></button>
+                    <span className="font-bold text-brand-teal text-sm tracking-tight uppercase">AlphaBasket</span>
                     <div className="w-10"></div>
                 </header>
 
-                <div className="flex-1 overflow-hidden p-4 lg:p-6">
+                <div className="flex-1 overflow-hidden p-3 lg:p-6">
                     <MainContent
                         view={view}
                         currentBasket={currentBasket}

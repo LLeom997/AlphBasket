@@ -105,34 +105,34 @@ const WealthBuilder: React.FC<WealthBuilderProps> = ({ simulation }) => {
       </div>
 
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-slate-900 rounded-xl text-white shadow-lg shadow-slate-200"><Calculator size={24} /></div>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 lg:gap-6 mb-6 lg:mb-10">
+          <div className="flex items-center gap-3 lg:gap-4">
+            <div className="p-2 lg:p-3 bg-slate-900 rounded-xl text-white shadow-lg shadow-slate-200"><Calculator size={20} className="lg:size-20" /></div>
             <div>
-              <h3 className="text-slate-900 font-bold text-lg tracking-tight">Financial Freedom Engine</h3>
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Compound interest projection based on Backtest</p>
+              <h3 className="text-slate-900 font-bold text-base lg:text-lg tracking-tight">Financial Freedom Engine</h3>
+              <p className="text-[9px] lg:text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Compound interest projection based on Backtest</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-6 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
-            <div className="text-center">
-              <p className="text-[8px] font-bold text-slate-400 uppercase mb-1">Total Invested</p>
+          <div className="flex flex-wrap items-center gap-3 lg:gap-6 px-3 lg:px-4 py-2 lg:py-2 bg-slate-50 rounded-xl border border-slate-100">
+            <div className="text-center flex-1 sm:flex-none">
+              <p className="text-[7px] lg:text-[8px] font-bold text-slate-400 uppercase mb-0.5 lg:mb-1">Invested</p>
               <p className="text-xs font-bold text-slate-700">{formatINR(totalInvested)}</p>
             </div>
-            <div className="w-px h-6 bg-slate-200"></div>
-            <div className="text-center">
-              <p className="text-[8px] font-bold text-slate-400 uppercase mb-1">Growth Surplus</p>
+            <div className="hidden sm:block w-px h-6 bg-slate-200"></div>
+            <div className="text-center flex-1 sm:flex-none">
+              <p className="text-[7px] lg:text-[8px] font-bold text-slate-400 uppercase mb-0.5 lg:mb-1">Surplus</p>
               <p className="text-xs font-bold text-brand-green">+{formatINR(terminalWealth - totalInvested)}</p>
             </div>
-            <div className="w-px h-6 bg-slate-200"></div>
-            <div className="text-center">
-              <p className="text-[8px] font-bold text-slate-400 uppercase mb-1">Strategy CAGR</p>
+            <div className="hidden sm:block w-px h-6 bg-slate-200"></div>
+            <div className="text-center flex-1 sm:flex-none">
+              <p className="text-[7px] lg:text-[8px] font-bold text-slate-400 uppercase mb-0.5 lg:mb-1">CAGR</p>
               <p className="text-xs font-bold text-brand-teal">{formatPct(simulation.metrics.cagr)}</p>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-12">
           <div className="lg:col-span-4 space-y-10">
             <div className="space-y-5">
               <div className="flex justify-between items-center px-1">
@@ -175,66 +175,67 @@ const WealthBuilder: React.FC<WealthBuilderProps> = ({ simulation }) => {
                 <ShieldCheck size={14} className="text-brand-green" />
                 <span className="text-[10px] font-semibold text-brand-green uppercase">Projection Baseline Verified</span>
               </div>
-              <Activity size={100} className="absolute -right-8 -bottom-8 text-white/5 opacity-10 group-hover:scale-110 transition-transform pointer-events-none" />
+              <Activity size={60} className="absolute -right-8 -bottom-8 text-white/5 opacity-10 group-hover:scale-110 transition-transform pointer-events-none" />
+            </div>
+          </div>
+        </div>
+
+        <div className="lg:col-span-8 flex flex-col">
+          <div className="flex items-center justify-between mb-8 px-2">
+            <h4 className="text-[10px] font-bold text-slate-900 uppercase tracking-widest flex items-center gap-2">
+              <LineChart size={14} className="text-brand-teal" /> Probability & Growth Corridor
+            </h4>
+            <div className="flex gap-4">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-slate-200"></div>
+                <span className="text-[9px] font-bold text-slate-400 uppercase">Input</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-brand-teal"></div>
+                <span className="text-[9px] font-bold text-slate-400 uppercase">Target</span>
+              </div>
             </div>
           </div>
 
-          <div className="lg:col-span-8 flex flex-col">
-            <div className="flex items-center justify-between mb-8 px-2">
-              <h4 className="text-[10px] font-bold text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                <LineChart size={14} className="text-brand-teal" /> Probability & Growth Corridor
-              </h4>
-              <div className="flex gap-4">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-slate-200"></div>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase">Input</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-brand-teal"></div>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase">Target</span>
-                </div>
-              </div>
-            </div>
+          <div className="flex-1 h-[280px] lg:h-[360px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={data} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="wealthGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#5acec9" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="#5acec9" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="bullGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#8dd67a" stopOpacity={0.08} />
+                    <stop offset="95%" stopColor="#8dd67a" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="year" tick={{ fontSize: 9, fontWeight: 700 }} stroke="#cbd5e1" axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={(v) => `₹${(v / 100000).toFixed(0)}L`} tick={{ fontSize: 9, fontWeight: 700 }} stroke="#cbd5e1" axisLine={false} tickLine={false} width={65} />
+                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontSize: '10px', fontWeight: 700 }} formatter={(v: any) => formatINR(v)} />
+                <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', paddingBottom: '20px' }} />
 
-            <div className="flex-1 h-[360px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="wealthGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#5acec9" stopOpacity={0.15} />
-                      <stop offset="95%" stopColor="#5acec9" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="bullGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#8dd67a" stopOpacity={0.08} />
-                      <stop offset="95%" stopColor="#8dd67a" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="year" tick={{ fontSize: 9, fontWeight: 700 }} stroke="#cbd5e1" axisLine={false} tickLine={false} />
-                  <YAxis tickFormatter={(v) => `₹${(v / 100000).toFixed(0)}L`} tick={{ fontSize: 9, fontWeight: 700 }} stroke="#cbd5e1" axisLine={false} tickLine={false} width={65} />
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontSize: '10px', fontWeight: 700 }} formatter={(v: any) => formatINR(v)} />
-                  <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', paddingBottom: '20px' }} />
+                <Area type="monotone" name="Bullish Peak" dataKey="bull" stroke="#8dd67a" strokeWidth={1} strokeDasharray="4 4" fill="url(#bullGrad)" />
+                <Area type="monotone" name="Net Principal" dataKey="invested" stroke="#cbd5e1" strokeWidth={1} fill="#f8fafc" />
+                <Area type="monotone" name="Expected Growth" dataKey="corpus" stroke="#5acec9" strokeWidth={3} fill="url(#wealthGrad)" animationDuration={1000} />
+                <Area type="monotone" name="Bearish Floor" dataKey="bear" stroke="#f3533b" strokeWidth={1} strokeDasharray="4 4" fill="transparent" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
 
-                  <Area type="monotone" name="Bullish Peak" dataKey="bull" stroke="#8dd67a" strokeWidth={1} strokeDasharray="4 4" fill="url(#bullGrad)" />
-                  <Area type="monotone" name="Net Principal" dataKey="invested" stroke="#cbd5e1" strokeWidth={1} fill="#f8fafc" />
-                  <Area type="monotone" name="Expected Growth" dataKey="corpus" stroke="#5acec9" strokeWidth={3} fill="url(#wealthGrad)" animationDuration={1000} />
-                  <Area type="monotone" name="Bearish Floor" dataKey="bear" stroke="#f3533b" strokeWidth={1} strokeDasharray="4 4" fill="transparent" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="mt-6 p-5 bg-brand-teal/5 border border-brand-teal/10 rounded-xl flex items-start gap-4">
-              <Info size={18} className="text-brand-teal shrink-0 mt-0.5" />
-              <p className="text-[11px] font-medium text-brand-teal leading-relaxed">
-                <span className="font-bold uppercase tracking-tighter mr-2">Market Realization:</span>
-                A monthly SIP of <span className="font-bold">{formatINR(sip)}</span> into this custom basket for <span className="font-bold">{years} years</span> aims for an expected corpus of <span className="font-bold">{formatINR(terminalWealth)}</span>.
-                The Bull case suggests a potential high of <span className="font-bold">{formatINR(terminalBull)}</span>, while the floor is modeled at <span className="font-bold">{formatINR(terminalBear)}</span>.
-              </p>
-            </div>
+          <div className="mt-6 p-5 bg-brand-teal/5 border border-brand-teal/10 rounded-xl flex items-start gap-4">
+            <Info size={18} className="text-brand-teal shrink-0 mt-0.5" />
+            <p className="text-[11px] font-medium text-brand-teal leading-relaxed">
+              <span className="font-bold uppercase tracking-tighter mr-2">Market Realization:</span>
+              A monthly SIP of <span className="font-bold">{formatINR(sip)}</span> into this custom basket for <span className="font-bold">{years} years</span> aims for an expected corpus of <span className="font-bold">{formatINR(terminalWealth)}</span>.
+              The Bull case suggests a potential high of <span className="font-bold">{formatINR(terminalBull)}</span>, while the floor is modeled at <span className="font-bold">{formatINR(terminalBear)}</span>.
+            </p>
           </div>
         </div>
       </div>
     </div>
+
   );
 };
 

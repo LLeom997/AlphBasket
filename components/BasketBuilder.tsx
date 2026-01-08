@@ -136,30 +136,30 @@ const BasketBuilder: React.FC<BasketBuilderProps> = ({ availableStocks, initialB
   const currentTotalWeight = items.reduce((sum, i) => sum + (i.suppressed ? 0 : i.weight), 0);
 
   return (
-    <div className="bg-white flex flex-col h-full border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-[600px] lg:min-h-0">
-      <div className="p-4 border-b border-slate-100 bg-slate-50/30">
-        <div className="flex justify-between items-start mb-4 gap-3">
-          <div onClick={() => fileInputRef.current?.click()} className="w-10 h-10 bg-white border border-slate-200 rounded-lg overflow-hidden cursor-pointer flex items-center justify-center hover:bg-slate-50 transition-all relative shrink-0 shadow-sm group">
-            {isUploading ? <Loader2 size={14} className="animate-spin text-brand-teal" /> : iconUrl ? <img src={iconUrl} alt="Icon" className="w-full h-full object-cover" /> : <ImageIcon size={18} className="text-slate-300" />}
-            <div className="absolute inset-0 bg-brand-teal/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white"><Camera size={12} /></div>
+    <div className="bg-white flex flex-col h-full lg:h-full border border-slate-200 shadow-sm rounded-xl overflow-hidden">
+      <div className="p-3 lg:p-4 border-b border-slate-100 bg-slate-50/30 shrink-0">
+        <div className="flex justify-between items-start mb-3 lg:mb-4 gap-3">
+          <div onClick={() => fileInputRef.current?.click()} className="w-8 h-8 lg:w-10 lg:h-10 bg-white border border-slate-200 rounded-lg overflow-hidden cursor-pointer flex items-center justify-center hover:bg-slate-50 transition-all relative shrink-0 shadow-sm group">
+            {isUploading ? <Loader2 size={12} className="animate-spin text-brand-teal" /> : iconUrl ? <img src={iconUrl} alt="Icon" className="w-full h-full object-cover" /> : <ImageIcon size={16} className="text-slate-300" />}
+            <div className="absolute inset-0 bg-brand-teal/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white"><Camera size={10} /></div>
           </div>
           <input type="file" ref={fileInputRef} className="hidden" accept="image/png,image/jpeg" onChange={handleIconUpload} />
           <div className="flex-1 min-w-0">
-            <input value={name} onChange={(e) => setName(e.target.value)} className="bg-transparent text-base font-bold text-slate-900 border-none focus:ring-0 p-0 w-full placeholder:text-slate-300" placeholder="Strategy Name" />
-            <div className="mt-1 flex items-center gap-2">
-              <select value={category} onChange={e => setCategory(e.target.value)} className="bg-white border border-slate-200 text-[9px] font-bold text-slate-500 uppercase tracking-wider px-2 py-0.5 rounded outline-none appearance-none cursor-pointer">
+            <input value={name} onChange={(e) => setName(e.target.value)} className="bg-transparent text-sm lg:text-base font-bold text-slate-900 border-none focus:ring-0 p-0 w-full placeholder:text-slate-300" placeholder="Strategy Name" />
+            <div className="mt-0.5 lg:mt-1 flex items-center gap-2">
+              <select value={category} onChange={e => setCategory(e.target.value)} className="bg-white border border-slate-200 text-[8px] lg:text-[9px] font-bold text-slate-500 uppercase tracking-wider px-1.5 lg:px-2 py-0.5 rounded outline-none appearance-none cursor-pointer">
                 {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
           </div>
-          <button onClick={handleSaveInternal} className={`p-2 rounded-lg transition-all ${justSaved ? 'text-brand-green bg-brand-green/10' : 'text-slate-400 hover:text-brand-teal hover:bg-brand-teal/5'}`}>
-            {justSaved ? <Check size={16} /> : <RefreshCcw size={16} />}
+          <button onClick={handleSaveInternal} className={`p-1.5 lg:p-2 rounded-lg transition-all ${justSaved ? 'text-brand-green bg-brand-green/10' : 'text-slate-400 hover:text-brand-teal hover:bg-brand-teal/5'}`}>
+            {justSaved ? <Check size={14} className="lg:size-16" /> : <RefreshCcw size={14} className="lg:size-16" />}
           </button>
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          <div className="p-2.5 bg-white rounded-lg border border-slate-200">
-            <label className="text-[8px] text-slate-400 uppercase font-bold tracking-wider mb-1 flex items-center gap-1"><IndianRupee size={10} /> Capital</label>
+          <div className="p-2 lg:p-2.5 bg-white rounded-lg border border-slate-200">
+            <label className="text-[7px] lg:text-[8px] text-slate-400 uppercase font-bold tracking-wider mb-0.5 lg:mb-1 flex items-center gap-1"><IndianRupee size={10} /> Capital</label>
             <input type="number" value={investment} onChange={e => setInvestment(Number(e.target.value))} className="bg-transparent w-full focus:outline-none text-xs font-semibold text-slate-900" />
           </div>
           <div className="p-2.5 bg-white rounded-lg border border-slate-200">

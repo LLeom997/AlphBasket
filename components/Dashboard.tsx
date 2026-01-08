@@ -149,40 +149,49 @@ const Dashboard: React.FC<DashboardProps> = ({
     );
   };
 
+  const getTagColor = (ticker: string) => {
+    const colors = [
+      'bg-blue-50 text-blue-600 border-blue-200',
+      'bg-indigo-50 text-indigo-600 border-indigo-200',
+      'bg-violet-50 text-violet-600 border-violet-200',
+      'bg-purple-50 text-purple-600 border-purple-200',
+      'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-200',
+      'bg-pink-50 text-pink-600 border-pink-200',
+      'bg-rose-50 text-rose-600 border-rose-200',
+      'bg-orange-50 text-orange-600 border-orange-200',
+      'bg-amber-50 text-amber-600 border-amber-200',
+      'bg-emerald-50 text-emerald-600 border-emerald-200',
+      'bg-teal-50 text-teal-600 border-teal-200',
+      'bg-cyan-50 text-cyan-600 border-cyan-200',
+      'bg-sky-50 text-sky-600 border-sky-200',
+    ];
+    let hash = 0;
+    for (let i = 0; i < ticker.length; i++) hash = ticker.charCodeAt(i) + ((hash << 5) - hash);
+    return colors[Math.abs(hash) % colors.length];
+  };
+
 
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-2">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Executive Workbench</h1>
-          <p className="text-slate-500 text-sm font-medium mt-1">Institutional-grade synthetic asset backtesting</p>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-1 lg:px-2">
+        <div className="flex flex-col">
+          <h1 className="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Executive Workbench</h1>
+          <p className="text-slate-500 text-xs lg:text-sm font-medium mt-0.5 lg:mt-1">Institutional-grade synthetic asset backtesting</p>
         </div>
 
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-          <div className="px-4 py-2 bg-white border border-slate-200 rounded-2xl shadow-sm flex items-center gap-3">
-            <div className="w-8 h-8 bg-brand-teal/10 rounded-xl flex items-center justify-center text-brand-teal">
-              <Layers size={16} />
+        <div className="flex flex-wrap items-center gap-2 lg:gap-4">
+          <div className="hidden sm:flex px-3 lg:px-4 py-2 bg-white border border-slate-200 rounded-xl lg:rounded-2xl shadow-sm items-center gap-2 lg:gap-3">
+            <div className="w-6 h-6 lg:w-8 lg:h-8 bg-brand-teal/10 rounded-lg lg:rounded-xl flex items-center justify-center text-brand-teal">
+              <Layers size={14} className="lg:size-14" />
             </div>
             <div>
-              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Active Pool</p>
+              <p className="text-[7px] lg:text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-0.5">Active Pool</p>
               <p className="text-xs font-black text-slate-900">{projects.length} Strategies</p>
             </div>
           </div>
 
-          <div className="px-4 py-2 bg-white border border-slate-200 rounded-2xl shadow-sm flex items-center gap-3">
-            <div className="w-8 h-8 bg-brand-green/10 rounded-xl flex items-center justify-center text-brand-green">
-              <TrendingUp size={16} />
-            </div>
-            <div>
-              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Avg Pulse</p>
-              <p className="text-xs font-black text-brand-green">
-                {projects.length > 0 ? formatPct(projects.reduce((acc, p) => acc + (p.inceptionReturn || 0), 0) / projects.length) : '0.00%'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm shrink-0">
             {[
               { id: 'table', icon: List },
               { id: 'grid', icon: Grid3X3 },
@@ -191,33 +200,30 @@ const Dashboard: React.FC<DashboardProps> = ({
               <button
                 key={mode.id}
                 onClick={() => setViewMode(mode.id as ViewMode)}
-                className={`p-2 rounded-lg transition-all ${viewMode === mode.id ? 'bg-brand-teal text-white' : 'text-slate-400 hover:text-brand-teal'}`}
+                className={`p-1.5 lg:p-2 rounded-lg transition-all ${viewMode === mode.id ? 'bg-brand-teal text-white' : 'text-slate-400 hover:text-brand-teal'}`}
               >
-                <mode.icon size={16} />
+                <mode.icon size={14} />
               </button>
             ))}
           </div>
-          <button
-            onClick={handleSimulateAll}
-            disabled={isSimulatingAll || projects.length === 0}
-            className="bg-slate-900 hover:bg-black disabled:bg-slate-400 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 shadow-sm transition-all active:scale-95"
-          >
-            {isSimulatingAll ? (
-              <>
-                <Loader2 size={16} className="animate-spin" /> Simulating...
-              </>
-            ) : (
-              <>
-                <RefreshCw size={16} /> Refresh All
-              </>
-            )}
-          </button>
-          <button
-            onClick={onCreateProject}
-            className="bg-brand-teal hover:opacity-90 text-white px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 shadow-sm transition-all active:scale-95"
-          >
-            <Plus size={16} /> New Strategy
-          </button>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={handleSimulateAll}
+              disabled={isSimulatingAll || projects.length === 0}
+              className="flex-1 sm:flex-none bg-slate-900 hover:bg-black disabled:bg-slate-400 disabled:cursor-not-allowed text-white px-3 lg:px-4 py-2 lg:py-2.5 rounded-xl font-bold text-[10px] lg:text-xs flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95"
+            >
+              {isSimulatingAll ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+              <span className="whitespace-nowrap">{isSimulatingAll ? "Simulating..." : "Refresh All"}</span>
+            </button>
+            <button
+              onClick={onCreateProject}
+              className="flex-1 sm:flex-none bg-brand-teal hover:opacity-90 text-white px-3 lg:px-5 py-2 lg:py-2.5 rounded-xl font-bold text-[10px] lg:text-xs flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95"
+            >
+              <Plus size={14} />
+              <span className="whitespace-nowrap">New Strategy</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -259,25 +265,25 @@ const Dashboard: React.FC<DashboardProps> = ({
                       <ArrowUpDown size={9} className={sortBy === 'irr' ? 'text-brand-teal' : 'opacity-30'} />
                     </div>
                   </th>
-                  <th className="px-3 py-3 text-right cursor-pointer hover:text-brand-teal" onClick={() => { setSortBy('cagr1y'); setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc'); }}>
+                  <th className="px-3 py-3 text-right cursor-pointer hover:text-brand-teal hidden md:table-cell" onClick={() => { setSortBy('cagr1y'); setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc'); }}>
                     <div className="flex items-center justify-end gap-1.5">
                       1Y CAGR
                       <ArrowUpDown size={9} className={sortBy === 'cagr1y' ? 'text-brand-teal' : 'opacity-30'} />
                     </div>
                   </th>
-                  <th className="px-3 py-3 text-right cursor-pointer hover:text-brand-teal" onClick={() => { setSortBy('cagr3y'); setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc'); }}>
+                  <th className="px-3 py-3 text-right cursor-pointer hover:text-brand-teal hidden lg:table-cell" onClick={() => { setSortBy('cagr3y'); setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc'); }}>
                     <div className="flex items-center justify-end gap-1.5">
                       3Y CAGR
                       <ArrowUpDown size={9} className={sortBy === 'cagr3y' ? 'text-brand-teal' : 'opacity-30'} />
                     </div>
                   </th>
-                  <th className="px-3 py-3 text-right cursor-pointer hover:text-brand-teal" onClick={() => { setSortBy('cagr5y'); setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc'); }}>
+                  <th className="px-3 py-3 text-right cursor-pointer hover:text-brand-teal hidden lg:table-cell" onClick={() => { setSortBy('cagr5y'); setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc'); }}>
                     <div className="flex items-center justify-end gap-1.5">
                       5Y CAGR
                       <ArrowUpDown size={9} className={sortBy === 'cagr5y' ? 'text-brand-teal' : 'opacity-30'} />
                     </div>
                   </th>
-                  <th className="px-3 py-3 text-right cursor-pointer hover:text-brand-teal" onClick={() => { setSortBy('sharpeRatio'); setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc'); }}>
+                  <th className="px-3 py-3 text-right cursor-pointer hover:text-brand-teal sm:table-cell" onClick={() => { setSortBy('sharpeRatio'); setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc'); }}>
                     <div className="flex items-center justify-end gap-1.5">
                       Sharpe
                       <ArrowUpDown size={9} className={sortBy === 'sharpeRatio' ? 'text-brand-teal' : 'opacity-30'} />
@@ -289,7 +295,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                       <ArrowUpDown size={9} className={sortBy === 'maxDrawdown' ? 'text-brand-teal' : 'opacity-30'} />
                     </div>
                   </th>
-                  <th className="px-3 py-3 text-right cursor-pointer hover:text-indigo-600" onClick={() => { setSortBy('updatedAt'); setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc'); }}>
+                  <th className="px-3 py-3 text-right cursor-pointer hover:text-indigo-600 hidden md:table-cell" onClick={() => { setSortBy('updatedAt'); setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc'); }}>
                     <div className="flex items-center justify-end gap-1.5">
                       Saved
                       <ArrowUpDown size={9} className={sortBy === 'updatedAt' ? 'text-brand-teal' : 'opacity-30'} />
@@ -311,7 +317,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                             {p.iconUrl ? (
                               <img src={p.iconUrl} alt={p.name} className="w-full h-full object-cover" />
                             ) : (
-                              <Activity size={16} className="text-slate-300" />
+                              <Activity size={14} className="text-slate-300" />
                             )}
                           </div>
                           <div className="flex flex-col min-w-0">
@@ -319,9 +325,23 @@ const Dashboard: React.FC<DashboardProps> = ({
                               <span className={`font-semibold text-sm truncate ${isActive ? 'text-brand-teal/80' : 'text-slate-900'}`}>{p.name}</span>
                               {isActive && <CheckCircle2 size={12} className="text-brand-teal" />}
                             </div>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-[9px] font-semibold text-brand-teal uppercase px-1.5 bg-brand-teal/5 rounded">{p.category || 'General'}</span>
-                              <span className="text-[9px] font-medium text-slate-400 uppercase">Synced {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : 'N/A'}</span>
+                            <div className="flex flex-wrap items-center gap-1 mt-1">
+                              {p.items?.slice(0, 4).map(item => (
+                                <span key={item.ticker} className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${getTagColor(item.ticker)}`}>
+                                  {item.ticker}
+                                </span>
+                              ))}
+                              {(p.items?.length || 0) > 4 && (
+                                <span className="text-[9px] font-bold text-slate-400 pl-1">
+                                  +{p.items!.length - 4}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <div className="flex items-center gap-1 text-[9px] font-bold text-brand-teal uppercase tracking-wider">
+                                <CheckCircle2 size={10} />
+                                <span>Synced {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : 'N/A'}</span>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -339,17 +359,17 @@ const Dashboard: React.FC<DashboardProps> = ({
                           {formatPct(p.irr)}
                         </div>
                       </td>
-                      <td className="px-3 py-4 text-right">
+                      <td className="px-3 py-4 text-right hidden md:table-cell">
                         <div className="text-[10px] font-semibold text-slate-700">
                           {formatPct(p.cagr1y)}
                         </div>
                       </td>
-                      <td className="px-3 py-4 text-right">
+                      <td className="px-3 py-4 text-right hidden lg:table-cell">
                         <div className="text-[10px] font-semibold text-slate-700">
                           {formatPct(p.cagr3y)}
                         </div>
                       </td>
-                      <td className="px-3 py-4 text-right">
+                      <td className="px-3 py-4 text-right hidden lg:table-cell">
                         <div className="text-[10px] font-semibold text-slate-700">
                           {formatPct(p.cagr5y)}
                         </div>
@@ -372,7 +392,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                       </td>
                       <td className="px-4 py-3 text-center">
                         <button onClick={e => handleDelete(e, p.id)} className="text-slate-300 hover:text-brand-red p-1.5 transition-all opacity-0 group-hover:opacity-100">
-                          <Trash2 size={16} />
+                          <Trash2 size={14} />
                         </button>
                       </td>
                     </tr>
@@ -398,61 +418,74 @@ const Dashboard: React.FC<DashboardProps> = ({
                         {project.iconUrl ? (
                           <img src={project.iconUrl} alt={project.name} className="w-full h-full object-cover" />
                         ) : (
-                          <Activity size={18} className="text-slate-300" />
+                          <Activity size={16} className="text-slate-300" />
                         )}
                       </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-[9px] font-semibold text-brand-teal uppercase tracking-wider mb-1">{project.category || 'General'}</span>
+                      <div className="flex flex-col flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-1 mb-1">
+                          {project.items?.slice(0, 3).map(item => (
+                            <span key={item.ticker} className={`text-[8px] font-bold px-1.5 py-0.5 rounded border ${getTagColor(item.ticker)}`}>
+                              {item.ticker}
+                            </span>
+                          ))}
+                          {(project.items?.length || 0) > 3 && (
+                            <span className="text-[8px] font-bold text-slate-400">+{project.items!.length - 3}</span>
+                          )}
+                        </div>
                         <h3 className={`font-bold text-base truncate ${isActive ? 'text-brand-teal' : 'text-slate-900'}`}>{project.name}</h3>
+                        <div className="flex items-center gap-1 mt-1">
+                          <CheckCircle2 size={10} className="text-brand-teal" />
+                          <span className="text-[8px] font-bold text-brand-teal uppercase tracking-wider">Synced {project.createdAt ? new Date(project.createdAt).toLocaleDateString() : 'N/A'}</span>
+                        </div>
+                      </div>
+                      <button onClick={e => handleDelete(e, project.id)} className="text-slate-300 hover:text-brand-red p-1 rounded-lg transition-all opacity-0 group-hover:opacity-100">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 mb-4">
+                      <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                        <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Daily Chg</p>
+                        <ReturnBadge val={project.todayReturn} />
+                      </div>
+                      <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                        <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Post-Mod</p>
+                        <p className={`text-[10px] font-bold ${(project.inceptionReturn || 0) >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
+                          {formatPct(project.inceptionReturn)}
+                        </p>
+                      </div>
+                      <div className="bg-brand-teal/5 p-2.5 rounded-lg border border-brand-teal/10">
+                        <p className="text-[8px] font-bold text-brand-teal uppercase tracking-wider mb-1">LTD IRR</p>
+                        <p className="text-[10px] font-black text-brand-teal/80">
+                          {formatPct(project.irr)}
+                        </p>
                       </div>
                     </div>
-                    <button onClick={e => handleDelete(e, project.id)} className="text-slate-300 hover:text-brand-red p-1 rounded-lg transition-all opacity-0 group-hover:opacity-100">
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-2 mb-4">
-                    <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                      <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Daily Chg</p>
-                      <ReturnBadge val={project.todayReturn} />
+                    <div className="grid grid-cols-3 gap-2 mb-4">
+                      <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                        <p className="text-[7px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">1Y CAGR</p>
+                        <p className="text-[9px] font-bold text-slate-700">{formatPct(project.cagr1y)}</p>
+                      </div>
+                      <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                        <p className="text-[7px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">3Y CAGR</p>
+                        <p className="text-[9px] font-bold text-slate-700">{formatPct(project.cagr3y)}</p>
+                      </div>
+                      <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                        <p className="text-[7px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">5Y CAGR</p>
+                        <p className="text-[9px] font-bold text-slate-700">{formatPct(project.cagr5y)}</p>
+                      </div>
                     </div>
-                    <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                      <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Post-Mod</p>
-                      <p className={`text-[10px] font-bold ${(project.inceptionReturn || 0) >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
-                        {formatPct(project.inceptionReturn)}
-                      </p>
-                    </div>
-                    <div className="bg-brand-teal/5 p-2.5 rounded-lg border border-brand-teal/10">
-                      <p className="text-[8px] font-bold text-brand-teal uppercase tracking-wider mb-1">LTD IRR</p>
-                      <p className="text-[10px] font-black text-brand-teal/80">
-                        {formatPct(project.irr)}
-                      </p>
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-3 gap-2 mb-4">
-                    <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
-                      <p className="text-[7px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">1Y CAGR</p>
-                      <p className="text-[9px] font-bold text-slate-700">{formatPct(project.cagr1y)}</p>
-                    </div>
-                    <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
-                      <p className="text-[7px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">3Y CAGR</p>
-                      <p className="text-[9px] font-bold text-slate-700">{formatPct(project.cagr3y)}</p>
-                    </div>
-                    <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
-                      <p className="text-[7px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">5Y CAGR</p>
-                      <p className="text-[9px] font-bold text-slate-700">{formatPct(project.cagr5y)}</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
-                      <p className="text-[7px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Sharpe</p>
-                      <p className="text-[9px] font-bold text-brand-teal">{(project.sharpeRatio || 0).toFixed(2)}</p>
-                    </div>
-                    <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
-                      <p className="text-[7px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Max DD</p>
-                      <p className="text-[9px] font-bold text-brand-red">{formatPct(project.maxDrawdown)}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                        <p className="text-[7px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Sharpe</p>
+                        <p className="text-[9px] font-bold text-brand-teal">{(project.sharpeRatio || 0).toFixed(2)}</p>
+                      </div>
+                      <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                        <p className="text-[7px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Max DD</p>
+                        <p className="text-[9px] font-bold text-brand-red">{formatPct(project.maxDrawdown)}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -475,9 +508,20 @@ const Dashboard: React.FC<DashboardProps> = ({
                       </div>
                       <span className="text-xs font-bold text-slate-900 truncate max-w-[120px]">{p.name}</span>
                     </div>
-                    <div className="text-[9px] font-black text-brand-teal uppercase bg-brand-teal/10 px-2 py-0.5 rounded">
-                      {p.category || 'Alpha'}
+                    <div className="text-[9px] font-black text-brand-teal uppercase bg-brand-teal/10 px-2 py-0.5 rounded flex items-center gap-1">
+                      <CheckCircle2 size={10} /> Synced
                     </div>
+                  </div>
+
+                  <div className="px-4 pb-2 flex flex-wrap gap-1">
+                    {p.items?.slice(0, 4).map(item => (
+                      <span key={item.ticker} className={`text-[8px] font-bold px-1.5 py-0.5 rounded border ${getTagColor(item.ticker)}`}>
+                        {item.ticker}
+                      </span>
+                    ))}
+                    {(p.items?.length || 0) > 4 && (
+                      <span className="text-[8px] font-bold text-slate-400">+{p.items!.length - 4}</span>
+                    )}
                   </div>
 
                   <div className="p-4 grid grid-cols-2 gap-3 flex-1">
@@ -520,13 +564,15 @@ const Dashboard: React.FC<DashboardProps> = ({
         )}
       </div>
 
-      {filteredAndSortedProjects.length === 0 && viewMode !== 'heatmap' && (
-        <div className="flex flex-col items-center justify-center p-12 border border-dashed border-slate-300 rounded-xl bg-white/50 text-center mx-2">
-          <BarChart4 size={40} className="text-slate-200 mb-3" />
-          <h3 className="font-semibold text-slate-400 uppercase tracking-wider text-xs">No strategies found</h3>
-        </div>
-      )}
-    </div>
+      {
+        filteredAndSortedProjects.length === 0 && viewMode !== 'heatmap' && (
+          <div className="flex flex-col items-center justify-center p-12 border border-dashed border-slate-300 rounded-xl bg-white/50 text-center mx-2">
+            <BarChart4 size={40} className="text-slate-200 mb-3" />
+            <h3 className="font-semibold text-slate-400 uppercase tracking-wider text-xs">No strategies found</h3>
+          </div>
+        )
+      }
+    </div >
   )
 }
 

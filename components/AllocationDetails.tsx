@@ -63,11 +63,11 @@ const AllocationDetails: React.FC<AllocationDetailsProps> = ({ simulation, stock
                     <table className="w-full text-left border-collapse">
                         <thead className="bg-slate-50 text-[8px] text-slate-400 font-bold uppercase tracking-wider border-b border-slate-200">
                             <tr>
-                                <th className="px-5 py-3">Asset Ticker</th>
-                                <th className="px-5 py-3 text-center">Growth Profile (1Y | 3Y | 5Y)</th>
-                                <th className="px-5 py-3 text-right">Actual Weight</th>
-                                <th className="px-5 py-3 text-right">Target Qty</th>
-                                <th className="px-5 py-3 text-right">Capital Allocated</th>
+                                <th className="px-3 lg:px-5 py-3">Ticker</th>
+                                <th className="px-3 lg:px-5 py-3 text-center hidden md:table-cell">Profile (1Y|3Y|5Y)</th>
+                                <th className="px-3 lg:px-5 py-3 text-right hidden sm:table-cell">Actual Wt</th>
+                                <th className="px-3 lg:px-5 py-3 text-right">Qty</th>
+                                <th className="px-3 lg:px-5 py-3 text-right">Invested</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -79,34 +79,30 @@ const AllocationDetails: React.FC<AllocationDetailsProps> = ({ simulation, stock
 
                                 return (
                                     <tr key={item.ticker} className="hover:bg-slate-50 transition-colors group">
-                                        <td className="px-5 py-3">
-                                            <span className="font-bold text-[11px] text-slate-900">{item.ticker}</span>
+                                        <td className="px-3 lg:px-5 py-3">
+                                            <span className="font-bold text-[10px] lg:text-[11px] text-slate-900">{item.ticker}</span>
                                         </td>
-                                        <td className="px-5 py-3">
+                                        <td className="px-3 lg:px-5 py-3 hidden md:table-cell">
                                             <div className="flex items-center justify-center gap-2">
                                                 <div className="text-center px-1">
-                                                    <p className={`text-[10px] font-semibold ${ret1Y >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>{formatPct(ret1Y * 100)}</p>
+                                                    <p className={`text-[9px] font-semibold ${ret1Y >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>{formatPct(ret1Y * 100)}</p>
                                                 </div>
                                                 <div className="w-px h-3 bg-slate-200" />
                                                 <div className="text-center px-1">
-                                                    <p className={`text-[10px] font-semibold ${ret3Y >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>{formatPct(ret3Y * 100)}</p>
-                                                </div>
-                                                <div className="w-px h-3 bg-slate-200" />
-                                                <div className="text-center px-1">
-                                                    <p className={`text-[10px] font-semibold ${ret5Y >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>{formatPct(ret5Y * 100)}</p>
+                                                    <p className={`text-[9px] font-semibold ${ret3Y >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>{formatPct(ret3Y * 100)}</p>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-5 py-3 text-right">
+                                        <td className="px-3 lg:px-5 py-3 text-right hidden sm:table-cell">
                                             <span className="text-[10px] font-semibold text-slate-800">{formatPct(item.actualWeight)}</span>
                                             <span className="text-[8px] text-slate-400 block font-medium">Goal: {formatPct(item.targetWeight)}</span>
                                         </td>
-                                        <td className="px-5 py-3 text-right">
-                                            <span className="text-[10px] font-semibold text-slate-600">{item.sharesBought} SH</span>
+                                        <td className="px-3 lg:px-5 py-3 text-right">
+                                            <span className="text-[10px] font-semibold text-slate-600">{item.sharesBought}</span>
                                         </td>
-                                        <td className="px-5 py-3 text-right">
+                                        <td className="px-3 lg:px-5 py-3 text-right">
                                             <div className="text-[10px] font-bold text-slate-900">{formatMoney(item.actualAmount)}</div>
-                                            <div className="text-[8px] text-slate-400 font-medium">Buy: {formatMoney(item.priceAtBuy)}</div>
+                                            <div className="text-[8px] text-slate-400 font-medium">@{formatMoney(item.priceAtBuy)}</div>
                                         </td>
                                     </tr>
                                 );

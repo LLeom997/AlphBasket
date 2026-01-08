@@ -48,49 +48,49 @@ const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ simulation, basket }) =
       {/* Primary Scorecard */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
         {/* Main Header */}
-        <div className="px-6 py-5 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-50/30">
+        <div className="px-4 lg:px-6 py-4 lg:py-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/30">
           <div className="flex flex-col">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em] mb-1">Synthetic Value Index</span>
+            <span className="text-[9px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em] mb-1">Synthetic Value Index</span>
             <div className="flex items-center gap-3">
-              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+              <h2 className="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">
                 {formatMoney(latestClose)}
               </h2>
               <div className={`px-2 py-1 rounded-lg flex items-center gap-1.5 ${isPositive(basket?.todayReturn || 0) ? 'bg-brand-green/10 text-brand-green' : 'bg-brand-red/10 text-brand-red'}`}>
-                {isPositive(basket?.todayReturn || 0) ? <TrendingUp size={14} /> : <ArrowDownRight size={14} />}
-                <span className="text-xs font-bold">{formatPct(basket?.todayReturn)}</span>
+                {isPositive(basket?.todayReturn || 0) ? <TrendingUp size={12} className="lg:size-12" /> : <ArrowDownRight size={12} className="lg:size-12" />}
+                <span className="text-[10px] lg:text-xs font-bold">{formatPct(basket?.todayReturn)}</span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm">
-            <div className="flex items-center gap-2 text-slate-400">
-              <Clock size={12} />
-              <span className="text-[10px] font-semibold">{startDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+          <div className="flex items-center gap-2 lg:gap-3 bg-white px-2.5 lg:px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm w-full sm:w-auto justify-between sm:justify-start">
+            <div className="flex items-center gap-1.5 lg:gap-2 text-slate-400">
+              <Clock size={10} className="lg:size-10" />
+              <span className="text-[9px] lg:text-[10px] font-semibold">{startDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
             </div>
             <ArrowRight size={10} className="text-slate-300" />
             <div className="flex items-center gap-2 text-slate-400">
-              <span className="text-[10px] font-semibold">{endDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+              <span className="text-[9px] lg:text-[10px] font-semibold">{endDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
             </div>
           </div>
         </div>
 
         {/* Coherent Core Metrics Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-slate-100">
-          <div className="p-5 flex flex-col items-center justify-center group hover:bg-slate-50 transition-colors">
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Historical CAGR</span>
-            <span className="text-xl font-bold text-brand-teal">{formatPct(metrics.cagr)}</span>
+          <div className="p-4 lg:p-5 flex flex-col items-center justify-center group hover:bg-slate-50 transition-colors">
+            <span className="text-[8px] lg:text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1 lg:mb-1.5">Hist CAGR</span>
+            <span className="text-lg lg:text-xl font-bold text-brand-teal">{formatPct(metrics.cagr)}</span>
           </div>
-          <div className="p-5 flex flex-col items-center justify-center group hover:bg-slate-50 transition-colors">
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Volatility (Std)</span>
-            <span className="text-xl font-bold text-slate-900">{formatPct(metrics.volatility)}</span>
+          <div className="p-4 lg:p-5 flex flex-col items-center justify-center group hover:bg-slate-50 transition-colors border-t-0 md:border-t-0">
+            <span className="text-[8px] lg:text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1 lg:mb-1.5">Volatility</span>
+            <span className="text-lg lg:text-xl font-bold text-slate-900">{formatPct(metrics.volatility)}</span>
           </div>
-          <div className="p-5 flex flex-col items-center justify-center group hover:bg-slate-50 transition-colors">
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Sharpe Ratio</span>
-            <span className="text-xl font-bold text-slate-900">{metrics.sharpeRatio.toFixed(2)}</span>
+          <div className="p-4 lg:p-5 flex flex-col items-center justify-center group hover:bg-slate-50 transition-colors">
+            <span className="text-[8px] lg:text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1 lg:mb-1.5">Sharpe</span>
+            <span className="text-lg lg:text-xl font-bold text-slate-900">{metrics.sharpeRatio.toFixed(2)}</span>
           </div>
-          <div className="p-5 flex flex-col items-center justify-center group hover:bg-slate-50 transition-colors">
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Max Drawdown</span>
-            <span className="text-xl font-bold text-brand-red">{formatPct(metrics.maxDrawdown)}</span>
+          <div className="p-4 lg:p-5 flex flex-col items-center justify-center group hover:bg-slate-50 transition-colors">
+            <span className="text-[8px] lg:text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1 lg:mb-1.5">Max DD</span>
+            <span className="text-lg lg:text-xl font-bold text-brand-red">{formatPct(metrics.maxDrawdown)}</span>
           </div>
         </div>
 
@@ -101,30 +101,30 @@ const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ simulation, basket }) =
               <BarChart3 size={12} className="text-brand-teal" /> Rolling Window Performance
             </span>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 divide-x divide-slate-100">
+          <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-100">
             {[
               { label: '1-Year Window', stats: stats1Y, showCagr: false },
               { label: '3-Year Window', stats: stats3Y, showCagr: true },
               { label: '5-Year Window', stats: stats5Y, showCagr: true }
             ].map((item, idx) => (
-              <div key={idx} className="p-5 flex flex-col gap-3">
+              <div key={idx} className="p-4 lg:p-5 flex flex-col gap-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">{item.label}</span>
-                  {!item.stats && <span className="text-[8px] font-bold text-slate-300 uppercase">Insufficient History</span>}
+                  <span className="text-[9px] lg:text-[10px] font-bold text-slate-600 uppercase tracking-wider">{item.label}</span>
+                  {!item.stats && <span className="text-[7px] lg:text-[8px] font-bold text-slate-300 uppercase">Insufficient History</span>}
                 </div>
 
                 <div className="flex items-end justify-between">
                   <div className="flex flex-col">
-                    <span className="text-[8px] font-semibold text-slate-400 uppercase tracking-tighter">Absolute</span>
-                    <span className={`text-lg font-bold ${!item.stats ? 'text-slate-100' : isPositive(item.stats.absReturn) ? 'text-brand-green' : 'text-brand-red'}`}>
+                    <span className="text-[7px] lg:text-[8px] font-semibold text-slate-400 uppercase tracking-tighter">Absolute</span>
+                    <span className={`text-base lg:text-lg font-bold ${!item.stats ? 'text-slate-100' : isPositive(item.stats.absReturn) ? 'text-brand-green' : 'text-brand-red'}`}>
                       {item.stats ? formatPct(item.stats.absReturn) : '--'}
                     </span>
                   </div>
 
                   {item.showCagr && (
                     <div className="flex flex-col text-right border-l border-slate-200 pl-4">
-                      <span className="text-[8px] font-semibold text-slate-400 uppercase tracking-tighter">CAGR</span>
-                      <span className={`text-base font-bold ${!item.stats ? 'text-slate-100' : 'text-brand-teal'}`}>
+                      <span className="text-[7px] lg:text-[8px] font-semibold text-slate-400 uppercase tracking-tighter">CAGR</span>
+                      <span className={`text-sm lg:text-base font-bold ${!item.stats ? 'text-slate-100' : 'text-brand-teal'}`}>
                         {item.stats ? formatPct(item.stats.cagr) : '--'}
                       </span>
                     </div>

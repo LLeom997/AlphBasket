@@ -142,7 +142,7 @@ const SnapshotHistory: React.FC<SnapshotHistoryProps> = ({ basketId, currentSimu
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                 {/* Snapshot Selection List */}
-                <div className="lg:col-span-3 space-y-2 lg:h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar pr-1">
+                <div className="lg:col-span-3 space-y-2 lg:h-[calc(100vh-250px)] lg:overflow-y-auto custom-scrollbar pr-1">
                     {snapshots.map(s => (
                         <button
                             key={s.id}
@@ -173,32 +173,32 @@ const SnapshotHistory: React.FC<SnapshotHistoryProps> = ({ basketId, currentSimu
                     {selectedSnapshot ? (
                         <>
                             {/* Summary Card */}
-                            <div className="bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-6">
+                            <div className="bg-white p-4 lg:p-6 rounded-2xl lg:rounded-[32px] border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 lg:gap-6">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-14 h-14 bg-brand-teal/10 rounded-2xl flex items-center justify-center text-brand-teal shadow-inner">
-                                        <Clock size={28} />
+                                    <div className="w-10 h-10 lg:w-14 lg:h-14 bg-brand-teal/10 rounded-xl lg:rounded-2xl flex items-center justify-center text-brand-teal shadow-inner">
+                                        <Clock size={20} className="lg:size-10" />
                                     </div>
                                     <div>
                                         <p className="text-[7px] font-black uppercase tracking-widest text-slate-400">Snapshot Perspective</p>
-                                        <h3 className="text-2xl font-black text-slate-900 tracking-tight">{selectedSnapshot.label}</h3>
-                                        <div className="flex items-center gap-3 mt-1">
-                                            <p className="text-[9px] font-bold text-slate-500 flex items-center gap-1">
-                                                <Calendar size={10} /> Captured {new Date(selectedSnapshot.snapshotDate).toLocaleDateString()}
+                                        <h3 className="text-xl lg:text-2xl font-black text-slate-900 tracking-tight">{selectedSnapshot.label}</h3>
+                                        <div className="flex flex-wrap items-center gap-2 lg:gap-3 mt-1">
+                                            <p className="text-[8px] lg:text-[9px] font-bold text-slate-500 flex items-center gap-1">
+                                                <Calendar size={10} /> {new Date(selectedSnapshot.snapshotDate).toLocaleDateString()}
                                             </p>
-                                            <div className="w-1 h-1 rounded-full bg-slate-200"></div>
-                                            <p className="text-[9px] font-bold text-slate-500 flex items-center gap-1">
+                                            <div className="hidden sm:block w-1 h-1 rounded-full bg-slate-200"></div>
+                                            <p className="text-[8px] lg:text-[9px] font-bold text-slate-500 flex items-center gap-1">
                                                 <Layers size={10} /> {selectedSnapshot.basketState.items.length} Assets
                                             </p>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 w-full md:w-auto">
                                     <button
                                         onClick={() => onRestore(selectedSnapshot)}
-                                        className="bg-slate-900 text-white px-5 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-black transition-all shadow-xl shadow-slate-100"
+                                        className="w-full md:w-auto bg-slate-900 text-white px-4 lg:px-5 py-2.5 lg:py-3 rounded-xl lg:rounded-2xl text-[8px] lg:text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-black transition-all shadow-xl shadow-slate-100"
                                     >
-                                        <FileEdit size={14} /> Restore Params
+                                        <FileEdit size={12} className="lg:size-14" /> Restore Params
                                     </button>
                                 </div>
                             </div>

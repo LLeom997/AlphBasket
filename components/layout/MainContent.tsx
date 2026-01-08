@@ -66,8 +66,8 @@ export default function MainContent({
     }
 
     return (
-        <div className="max-w-[1500px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 h-full overflow-hidden">
-            <div className="lg:col-span-4 xl:col-span-3 shrink-0 overflow-y-auto custom-scrollbar">
+        <div className="max-w-[1500px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-4 h-full lg:overflow-hidden overflow-y-auto">
+            <div className="lg:col-span-4 xl:col-span-3 shrink-0 lg:overflow-y-auto custom-scrollbar border-b lg:border-b-0 border-slate-100 pb-4 lg:pb-0">
                 <BasketBuilder
                     availableStocks={stocks}
                     initialBasket={currentBasket}
@@ -78,11 +78,11 @@ export default function MainContent({
                 />
             </div>
 
-            <div className="lg:col-span-8 xl:col-span-9 flex flex-col space-y-3 overflow-hidden">
+            <div className="lg:col-span-8 xl:col-span-9 flex flex-col space-y-3 lg:overflow-hidden pt-1 lg:pt-0">
                 {currentBasket ? (
                     <>
-                        <div className="flex items-center justify-between shrink-0">
-                            <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm overflow-x-auto no-scrollbar">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0 px-1">
+                            <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm overflow-x-auto no-scrollbar w-full sm:w-auto">
                                 {[
                                     { id: "history", label: "History", icon: LineChart },
                                     { id: "predictive", label: "Forecast", icon: Sparkles },
